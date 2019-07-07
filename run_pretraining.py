@@ -22,6 +22,7 @@ import os
 import modeling
 import optimization
 import tensorflow as tf
+from mylogger import logger
 
 flags = tf.flags
 
@@ -30,27 +31,26 @@ FLAGS = flags.FLAGS
 ## Required parameters
 flags.DEFINE_string("bert_config_file", "uncased_L-12_H-768_A-12/bert_config.json", "定义网络结构的配置文件")
 
-flags.DEFINE_string(
-    "input_file", None,
-    "Input TF example files (can be a glob or comma separated).")
+flags.DEFINE_string("input_file", "tmp/tf_examples.tfrecord",
+                    "Input TF example files (can be a glob or comma separated).")
 
-flags.DEFINE_string("output_dir", None, "pre train 之后的model保存位置")
+flags.DEFINE_string("output_dir", "tmp/checkpoint", "pre train 之后的model保存位置")
 
 ## Other parameters
-flags.DEFINE_string("init_checkpoint", None, "restore前面已经训练模型的保存位置")
+flags.DEFINE_string("init_checkpoint", "uncased_L-12_H-768_A-12", "restore前面已经训练模型的保存位置")
+# flags.DEFINE_string("init_checkpoint", "uncased_L-12_H-768_A-12\\bert_model", "restore前面已经训练模型的保存位置")
+# flags.DEFINE_string("init_checkpoint", None, "restore前面已经训练模型的保存位置")
 
-flags.DEFINE_integer(
-    "max_seq_length", 128,
-    "The maximum total input sequence length after WordPiece tokenization. "
-    "Sequences longer than this will be truncated, and sequences shorter "
-    "than this will be padded. Must match data generation.")
+flags.DEFINE_integer("max_seq_length", 128,
+                     "The maximum total input sequence length after WordPiece tokenization. "
+                     "Sequences longer than this will be truncated, and sequences shorter "
+                     "than this will be padded. Must match data generation.")
 
-flags.DEFINE_integer(
-    "max_predictions_per_seq", 20,
-    "Maximum number of masked LM predictions per sequence. "
-    "Must match data generation.")
+flags.DEFINE_integer("max_predictions_per_seq", 20,
+                     "Maximum number of masked LM predictions per sequence. "
+                     "Must match data generation.")
 
-flags.DEFINE_bool("do_train", False, "是否训练模型")
+flags.DEFINE_bool("do_train", True, "是否训练模型")
 
 flags.DEFINE_bool("do_eval", False, "是否对训练结果进行评估")
 
@@ -64,6 +64,7 @@ flags.DEFINE_integer("num_train_steps", 100000, "Number of training steps.")
 flags.DEFINE_integer("num_warmup_steps", 10000, "Number of warmup steps.")
 
 flags.DEFINE_integer("save_checkpoints_steps", 1000, "How often to save the model checkpoint.")
+# flags.DEFINE_integer("save_checkpoints_steps", 1, "How often to save the model checkpoint.")
 
 flags.DEFINE_integer("iterations_per_loop", 1000, "How many steps to make in each estimator call.")
 
@@ -100,25 +101,38 @@ def model_fn_builder(bert_config,
                      use_tpu,
                      use_one_hot_embeddings
                      ):
-    """Returns `model_fn` closure for TPUEstimator."""
+    """
+    Returns `model_fn` closure for TPUEstimator.
+    :param bert_config:  模型的archive文件
+    :param init_checkpoint:
+    :param learning_rate:
+    :param num_train_steps:
+    :param num_warmup_steps:
+    :param use_tpu:
+    :param use_one_hot_embeddings:
+    :return:
+    """
 
     def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
+        # 传进paras的是什么
+    # def model_fn(features, mode):  # pylint: disable=unused-argument
         """The `model_fn` for TPUEstimator."""
 
-        tf.logging.info("*** Features ***")
+        logger.info("*** Features 函数的训练样本特征***")
         for name in sorted(features.keys()):
-            tf.logging.info("  name = %s, shape = %s" % (name, features[name].shape))
+            logger.info("  name = %s, shape = %s" % (name, features[name].shape))
 
-        input_ids = features["input_ids"]
+        input_ids = features["input_ids"]  # mask之后的句子句子的序列化
         input_mask = features["input_mask"]
-        segment_ids = features["segment_ids"]
-        masked_lm_positions = features["masked_lm_positions"]
-        masked_lm_ids = features["masked_lm_ids"]
-        masked_lm_weights = features["masked_lm_weights"]
-        next_sentence_labels = features["next_sentence_labels"]
+        segment_ids = features["segment_ids"]  # A B 两个序列
+        masked_lm_positions = features["masked_lm_positions"]  # mask position
+        masked_lm_ids = features["masked_lm_ids"]  # mask 序列胡
+        masked_lm_weights = features["masked_lm_weights"]  # 被mask的权重
+        next_sentence_labels = features["next_sentence_labels"]  # 是否是下一句
 
         # ???
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
+        logger.info(is_training)
 
         model = modeling.BertModel(
             config=bert_config,
@@ -150,8 +164,7 @@ def model_fn_builder(bert_config,
         initialized_variable_names = {}
         scaffold_fn = None
         if init_checkpoint:
-            (assignment_map, initialized_variable_names
-             ) = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+            assignment_map, initialized_variable_names = modeling.get_assignment_map_from_checkpoint(tvars, init_checkpoint)
             if use_tpu:
 
                 def tpu_scaffold():
@@ -162,13 +175,13 @@ def model_fn_builder(bert_config,
             else:
                 tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
-        tf.logging.info("**** Trainable Variables ****")
+        logger.info("**** Trainable Variables ****")
         for var in tvars:
             init_string = ""
             if var.name in initialized_variable_names:
                 init_string = ", *INIT_FROM_CKPT*"
-            tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape,
-                            init_string)
+            logger.info("  name = %s, shape = %s%s", var.name, var.shape,
+                        init_string)
 
         output_spec = None
         if mode == tf.estimator.ModeKeys.TRAIN:
@@ -203,10 +216,12 @@ def model_fn_builder(bert_config,
                 next_sentence_log_probs = tf.reshape(next_sentence_log_probs, [-1, next_sentence_log_probs.shape[-1]])
                 next_sentence_predictions = tf.argmax(next_sentence_log_probs, axis=-1, output_type=tf.int32)
                 next_sentence_labels = tf.reshape(next_sentence_labels, [-1])
-                next_sentence_accuracy = tf.metrics.accuracy(labels=next_sentence_labels, predictions=next_sentence_predictions)
+                next_sentence_accuracy = tf.metrics.accuracy(labels=next_sentence_labels,
+                                                             predictions=next_sentence_predictions)
                 next_sentence_mean_loss = tf.metrics.mean(values=next_sentence_example_loss)
 
                 return {
+                    # 返回
                     "masked_lm_accuracy": masked_lm_accuracy,
                     "masked_lm_loss": masked_lm_mean_loss,
                     "next_sentence_accuracy": next_sentence_accuracy,
@@ -327,7 +342,7 @@ def input_fn_builder(input_files,
         batch_size = params["batch_size"]
 
         name_to_features = {
-            "input_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
+            "input_ids": tf.FixedLenFeature(shape=[max_seq_length], dtype=tf.int64),
             "input_mask": tf.FixedLenFeature([max_seq_length], tf.int64),
             "segment_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
             "masked_lm_positions": tf.FixedLenFeature([max_predictions_per_seq], tf.int64),
@@ -400,32 +415,45 @@ def main(_):
 
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
 
+    # 模型保存位置
     tf.gfile.MakeDirs(FLAGS.output_dir)
 
     input_files = []
     for input_pattern in FLAGS.input_file.split(","):
         input_files.extend(tf.gfile.Glob(input_pattern))
 
-    tf.logging.info("*** Input Files ***")
+    logger.info("*** Input Files ***")
     for input_file in input_files:
-        tf.logging.info("  %s" % input_file)
+        logger.info("  %s" % input_file)
 
     tpu_cluster_resolver = None
     if FLAGS.use_tpu and FLAGS.tpu_name:
-        tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
-            FLAGS.tpu_name, zone=FLAGS.tpu_zone, project=FLAGS.gcp_project)
+        # 这里并没有tpu可用
+        tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(FLAGS.tpu_name, zone=FLAGS.tpu_zone,
+                                                                              project=FLAGS.gcp_project)
 
     is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
+    logger.info(is_per_host)
+    # tpu 运行时候阐述
+    tpu_config = tf.contrib.tpu.TPUConfig(iterations_per_loop=FLAGS.iterations_per_loop,
+                                          num_shards=FLAGS.num_tpu_cores,
+                                          per_host_input_for_training=is_per_host
+                                          )
+    logger.info(tpu_config)
+    # TPUConfig(iterations_per_loop=1000, num_shards=8, num_cores_per_replica=None, per_host_input_for_training=3,
+    #           tpu_job_name=None, initial_infeed_sleep_secs=None, input_partition_dims=None)
+
+    # 运行参数
     run_config = tf.contrib.tpu.RunConfig(
         cluster=tpu_cluster_resolver,
         master=FLAGS.master,
         model_dir=FLAGS.output_dir,
         save_checkpoints_steps=FLAGS.save_checkpoints_steps,
-        tpu_config=tf.contrib.tpu.TPUConfig(
-            iterations_per_loop=FLAGS.iterations_per_loop,
-            num_shards=FLAGS.num_tpu_cores,
-            per_host_input_for_training=is_per_host))
+        tpu_config=tpu_config
+    )
+    logger.info(run_config)
 
+    # 在这里并没有初始化模型，仅仅是返回一个构建模型的函数体
     model_fn = model_fn_builder(
         bert_config=bert_config,
         init_checkpoint=FLAGS.init_checkpoint,
@@ -433,45 +461,52 @@ def main(_):
         num_train_steps=FLAGS.num_train_steps,
         num_warmup_steps=FLAGS.num_warmup_steps,
         use_tpu=FLAGS.use_tpu,
-        use_one_hot_embeddings=FLAGS.use_tpu)
+        use_one_hot_embeddings=FLAGS.use_tpu
+    )
 
-    # If TPU is not available, this will fall back to normal Estimator on CPU
-    # or GPU.
+    # If TPU is not available, this will fall back to normal Estimator on CPU or GPU.
+    logger.info("whether use tpu: %s" % str(FLAGS.use_tpu))
     estimator = tf.contrib.tpu.TPUEstimator(
         use_tpu=FLAGS.use_tpu,
-        model_fn=model_fn,
+        model_fn=model_fn,  # 模型函数
         config=run_config,
         train_batch_size=FLAGS.train_batch_size,
-        eval_batch_size=FLAGS.eval_batch_size)
+        eval_batch_size=FLAGS.eval_batch_size
+    )
 
+    logger.info(input_files)
     if FLAGS.do_train:
-        tf.logging.info("***** Running training *****")
-        tf.logging.info("  Batch size = %d", FLAGS.train_batch_size)
+        logger.info("***** Running training *****")
+        logger.info("  Batch size = %d", FLAGS.train_batch_size)
+        # 训练的输出函数
         train_input_fn = input_fn_builder(
             input_files=input_files,
             max_seq_length=FLAGS.max_seq_length,
             max_predictions_per_seq=FLAGS.max_predictions_per_seq,
-            is_training=True)
+            is_training=True
+        )
+        # 利用训练数据训练模型
         estimator.train(input_fn=train_input_fn, max_steps=FLAGS.num_train_steps)
 
     if FLAGS.do_eval:
-        tf.logging.info("***** Running evaluation *****")
-        tf.logging.info("  Batch size = %d", FLAGS.eval_batch_size)
+        logger.info("***** Running evaluation *****")
+        logger.info("  Batch size = %d", FLAGS.eval_batch_size)
 
         eval_input_fn = input_fn_builder(
             input_files=input_files,
             max_seq_length=FLAGS.max_seq_length,
             max_predictions_per_seq=FLAGS.max_predictions_per_seq,
-            is_training=False)
+            is_training=False
+        )
 
-        result = estimator.evaluate(
-            input_fn=eval_input_fn, steps=FLAGS.max_eval_steps)
+        # 自带evaluate函数
+        result = estimator.evaluate(input_fn=eval_input_fn, steps=FLAGS.max_eval_steps)
 
         output_eval_file = os.path.join(FLAGS.output_dir, "eval_results.txt")
         with tf.gfile.GFile(output_eval_file, "w") as writer:
-            tf.logging.info("***** Eval results *****")
+            logger.info("***** Eval results *****")
             for key in sorted(result.keys()):
-                tf.logging.info("  %s = %s", key, str(result[key]))
+                logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
 
 

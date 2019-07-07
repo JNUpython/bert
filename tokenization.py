@@ -128,6 +128,7 @@ def load_vocab(vocab_file):
         while True:
             token = convert_to_unicode(reader.readline())
             if not token:
+                # 文件读取完毕
                 break
             token = token.strip()
             vocab[token] = index

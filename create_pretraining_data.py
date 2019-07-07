@@ -284,8 +284,8 @@ def create_instances_from_document(all_documents,  # 所有docs
     current_chunk = []
     current_length = 0
     i = 0
-    logger.info(document)
-    logger.info(len(document))
+    # logger.info(document)
+    # logger.info(len(document))
     while i < len(document):
         segment = document[i]  # doc 的一个句子
         logger.info(i)
