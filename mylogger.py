@@ -41,8 +41,30 @@ chlr.setLevel('INFO')  # 也可以不设置，不设置就默认用logger的leve
 logger = logging.getLogger()
 logger.setLevel('DEBUG')
 logger.addHandler(chlr)
+
+
 # logger.addHandler(fhlr)
 
 # logger.info('this is info')
 # logger.debug('this is debug')
 # logger.info("test logging format")
+
+
+def print_falgs(FLAGS):
+    print('=================My Configurations:=====================')
+    # pdb.set_trace()
+    for name, value in FLAGS.__flags.items():
+        value = value.value
+        if type(value) == float:
+            print(' %s:\t %f' % (name, value))
+        elif type(value) == int:
+            print(' %s:\t %d' % (name, value))
+        elif type(value) == str:
+            print(' %s:\t %s' % (name, value))
+        elif type(value) == bool:
+            print(' %s:\t %s' % (name, value))
+        else:
+            print('%s:\t %s' % (name, value))
+    # for k, v in sorted(FLAGS.__dict__.items()):
+    # print(f'{k}={v}\n')
+    print('=================My Configurations:=====================')

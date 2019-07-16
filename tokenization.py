@@ -23,6 +23,7 @@ import re
 import unicodedata
 import six
 import tensorflow as tf
+from mylogger import logger
 
 
 def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
@@ -34,10 +35,12 @@ def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
     # we have to heuristically detect it to validate.
 
     if not init_checkpoint:
+        logger.info("初始化的checkpoint为 None")
         return
 
     m = re.match("^.*?([A-Za-z0-9_-]+)/bert_model.ckpt", init_checkpoint)
     if m is None:
+        logger.info("初始化的checkpoint无效：%s" % init_checkpoint)
         return
 
     model_name = m.group(1)
@@ -51,7 +54,9 @@ def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
         "cased_L-12_H-768_A-12", "cased_L-24_H-1024_A-16",
         "multi_cased_L-12_H-768_A-12"
     ]
+    logger.info("初始化的checkpoint为 %s" % model_name)
 
+    # 检查模型和参数do_lower_case是否匹配
     is_bad_config = False
     if model_name in lower_models and not do_lower_case:
         is_bad_config = True
@@ -73,6 +78,7 @@ def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
             "how the model was pre-training. If this error is wrong, please "
             "just comment out this check." % (actual_flag, init_checkpoint,
                                               model_name, case_name, opposite_flag))
+    logger.info("do_lower_case 与模型匹配")
 
 
 def convert_to_unicode(text):

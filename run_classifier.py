@@ -25,56 +25,51 @@ import modeling
 import optimization
 import tokenization
 import tensorflow as tf
-
+from mylogger import logger, print_falgs
 
 flags = tf.flags
+# flags.
 
 FLAGS = flags.FLAGS
 
 ## Required parameters
-flags.DEFINE_string(
-    "data_dir", None,
-    "The input data dir. Should contain the .tsv files (or other data files) "
-    "for the task.")
+flags.DEFINE_string("data_dir", None,
+                    "The input data dir. Should contain the .tsv files (or other data files) "
+                    "for the task.")
 
-flags.DEFINE_string(
-    "bert_config_file", None,
-    "The config json file corresponding to the pre-trained BERT model. "
-    "This specifies the model architecture.")
+flags.DEFINE_string("bert_config_file", None,
+                    "The config json file corresponding to the pre-trained BERT model. "
+                    "This specifies the model architecture.")
 
-flags.DEFINE_string("task_name", None, "The name of the task to train.")
+flags.DEFINE_string("task_name", "CoLA",
+                    "The name of the task to train.")
 
 flags.DEFINE_string("vocab_file", None,
                     "The vocabulary file that the BERT model was trained on.")
 
-flags.DEFINE_string(
-    "output_dir", None,
-    "The output directory where the model checkpoints will be written.")
+flags.DEFINE_string("output_dir", None,
+                    "The output directory where the model checkpoints will be written.")
 
 ## Other parameters
 
-flags.DEFINE_string(
-    "init_checkpoint", None,
-    "Initial checkpoint (usually from a pre-trained BERT model).")
+flags.DEFINE_string("init_checkpoint", None,
+                    "Initial checkpoint (usually from a pre-trained BERT model).")
 
-flags.DEFINE_bool(
-    "do_lower_case", True,
-    "Whether to lower case the input text. Should be True for uncased "
-    "models and False for cased models.")
+flags.DEFINE_bool("do_lower_case", True,
+                  "Whether to lower case the input text. Should be True for uncased "
+                  "models and False for cased models.")
 
-flags.DEFINE_integer(
-    "max_seq_length", 128,
-    "The maximum total input sequence length after WordPiece tokenization. "
-    "Sequences longer than this will be truncated, and sequences shorter "
-    "than this will be padded.")
+flags.DEFINE_integer("max_seq_length", 128,
+                     "The maximum total input sequence length after WordPiece tokenization. "
+                     "Sequences longer than this will be truncated, and sequences shorter "
+                     "than this will be padded.")
 
 flags.DEFINE_bool("do_train", False, "Whether to run training.")
 
 flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
 
-flags.DEFINE_bool(
-    "do_predict", False,
-    "Whether to run the model in inference mode on the test set.")
+flags.DEFINE_bool("do_predict", False,
+                  "Whether to run the model in inference mode on the test set.")
 
 flags.DEFINE_integer("train_batch_size", 32, "Total batch size for training.")
 
@@ -87,10 +82,9 @@ flags.DEFINE_float("learning_rate", 5e-5, "The initial learning rate for Adam.")
 flags.DEFINE_float("num_train_epochs", 3.0,
                    "Total number of training epochs to perform.")
 
-flags.DEFINE_float(
-    "warmup_proportion", 0.1,
-    "Proportion of training to perform linear learning rate warmup for. "
-    "E.g., 0.1 = 10% of training.")
+flags.DEFINE_float("warmup_proportion", 0.1,
+                   "Proportion of training to perform linear learning rate warmup for. "
+                   "E.g., 0.1 = 10% of training.")
 
 flags.DEFINE_integer("save_checkpoints_steps", 1000,
                      "How often to save the model checkpoint.")
@@ -100,29 +94,28 @@ flags.DEFINE_integer("iterations_per_loop", 1000,
 
 flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
 
-tf.flags.DEFINE_string(
-    "tpu_name", None,
-    "The Cloud TPU to use for training. This should be either the name "
-    "used when creating the Cloud TPU, or a grpc://ip.address.of.tpu:8470 "
-    "url.")
+tf.flags.DEFINE_string("tpu_name", None,
+                       "The Cloud TPU to use for training. This should be either the name "
+                       "used when creating the Cloud TPU, or a grpc://ip.address.of.tpu:8470 "
+                       "url.")
 
-tf.flags.DEFINE_string(
-    "tpu_zone", None,
-    "[Optional] GCE zone where the Cloud TPU is located in. If not "
-    "specified, we will attempt to automatically detect the GCE project from "
-    "metadata.")
+tf.flags.DEFINE_string("tpu_zone", None,
+                       "[Optional] GCE zone where the Cloud TPU is located in. If not "
+                       "specified, we will attempt to automatically detect the GCE project from "
+                       "metadata.")
 
-tf.flags.DEFINE_string(
-    "gcp_project", None,
-    "[Optional] Project name for the Cloud TPU-enabled project. If not "
-    "specified, we will attempt to automatically detect the GCE project from "
-    "metadata.")
+tf.flags.DEFINE_string("gcp_project", None,
+                       "[Optional] Project name for the Cloud TPU-enabled project. If not "
+                       "specified, we will attempt to automatically detect the GCE project from "
+                       "metadata.")
 
 tf.flags.DEFINE_string("master", None, "[Optional] TensorFlow master URL.")
 
-flags.DEFINE_integer(
-    "num_tpu_cores", 8,
-    "Only used if `use_tpu` is True. Total number of TPU cores to use.")
+flags.DEFINE_integer("num_tpu_cores", 8,
+                     "Only used if `use_tpu` is True. Total number of TPU cores to use.")
+
+
+# print(FLAGS)
 
 
 class InputExample(object):
@@ -197,6 +190,7 @@ class DataProcessor(object):
     @classmethod
     def _read_tsv(cls, input_file, quotechar=None):
         """Reads a tab separated value file."""
+        logger.info("_read_tsv file: %s" % input_file)
         with tf.gfile.Open(input_file, "r") as f:
             reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
             lines = []
@@ -334,6 +328,9 @@ class MrpcProcessor(DataProcessor):
 class ColaProcessor(DataProcessor):
     """Processor for the CoLA data set (GLUE version)."""
 
+    # def __init__(self):
+    #     super.__init__()
+
     def get_train_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
@@ -361,6 +358,7 @@ class ColaProcessor(DataProcessor):
             if set_type == "test" and i == 0:
                 continue
             guid = "%s-%s" % (set_type, i)
+            # 原始数据不需要经过处理，直接选取1， 3 列
             if set_type == "test":
                 text_a = tokenization.convert_to_unicode(line[1])
                 label = "0"
@@ -795,46 +793,58 @@ def main(_):
 
     bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
 
-    # 限制这个长度的原因
+    # fine tuning 句子的长度不能比 pre train 长
     if FLAGS.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
             "Cannot use sequence length %d because the BERT model "
             "was only trained up to sequence length %d" %
             (FLAGS.max_seq_length, bert_config.max_position_embeddings))
 
+    # 创建输出文件夹
     tf.gfile.MakeDirs(FLAGS.output_dir)
 
-    task_name = FLAGS.task_name.lower()
-
     # 必须为每一task定义一个processor
+    task_name = FLAGS.task_name.lower()
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
+    # 选取指定的数据
+    logger.info("数据集合是: %s" % task_name)
     processor = processors[task_name]()
 
+    # 事先定义好分类类别的label集合
     label_list = processor.get_labels()
 
+    # 加载词典，并将词典编号处理
     tokenizer = tokenization.FullTokenizer(vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
+    # 忽略tpu
     tpu_cluster_resolver = None
     if FLAGS.use_tpu and FLAGS.tpu_name:
         tpu_cluster_resolver = tf.contrib.cluster_resolver.TPUClusterResolver(
             FLAGS.tpu_name, zone=FLAGS.tpu_zone, project=FLAGS.gcp_project)
 
     is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
+
+    tpu_config = tf.contrib.tpu.TPUConfig(
+        iterations_per_loop=FLAGS.iterations_per_loop,
+        num_shards=FLAGS.num_tpu_cores,
+        per_host_input_for_training=is_per_host
+    )
+
     run_config = tf.contrib.tpu.RunConfig(
         cluster=tpu_cluster_resolver,
         master=FLAGS.master,
         model_dir=FLAGS.output_dir,
         save_checkpoints_steps=FLAGS.save_checkpoints_steps,
-        tpu_config=tf.contrib.tpu.TPUConfig(
-            iterations_per_loop=FLAGS.iterations_per_loop,
-            num_shards=FLAGS.num_tpu_cores,
-            per_host_input_for_training=is_per_host))
+        tpu_config=tpu_config
+    )
 
     train_examples = None
     num_train_steps = None
     num_warmup_steps = None
+
+    # 获取训练的数据
     if FLAGS.do_train:
         train_examples = processor.get_train_examples(FLAGS.data_dir)
         num_train_steps = int(len(train_examples) / FLAGS.train_batch_size * FLAGS.num_train_epochs)
@@ -972,9 +982,30 @@ def main(_):
 
 
 if __name__ == "__main__":
-    flags.mark_flag_as_required("data_dir")
-    flags.mark_flag_as_required("task_name")
-    flags.mark_flag_as_required("vocab_file")
-    flags.mark_flag_as_required("bert_config_file")
-    flags.mark_flag_as_required("output_dir")
-    tf.app.run()
+    # set paras data for test
+    FLAGS.task_name = "cola"
+    FLAGS.bert_config_file = "uncased_L-12_H-768_A-12/bert_config.json"
+    FLAGS.data_dir = "data/cola_public/format"
+    FLAGS.vocab_file = "uncased_L-12_H-768_A-12/vocab.txt"
+    FLAGS.output_dir = "tmp/cola"
+    FLAGS.init_checkpoint = "uncased_L-12_H-768_A-12/bert_model.ckpt"
+    FLAGS.do_train = True
+    FLAGS.do_eval = True
+    FLAGS.do_predict = True
+
+    print_falgs(FLAGS)
+    logger.info(FLAGS.is_parsed())
+
+    logger.info("data dir: %s" % FLAGS.data_dir)
+    logger.info("bert_config_file dir: %s" % FLAGS.bert_config_file)
+    logger.info("task name: %s" % FLAGS.task_name)
+
+    # 仅仅利用命令行运行上述的参数才会有效
+    # main(None)  # 如果不在terminal中执行，默认参数没有用，上面也是
+
+    # flags.mark_flag_as_required("data_dir")
+    # flags.mark_flag_as_required("task_name")
+    # flags.mark_flag_as_required("vocab_file")
+    # flags.mark_flag_as_required("bert_config_file")
+    # flags.mark_flag_as_required("output_dir")
+    tf.app.run()  # 执行程序中的main函数并解析参数
