@@ -279,8 +279,7 @@ def gelu(x):
     Returns:
       `x` with the GELU activation applied.
     """
-    cdf = 0.5 * (1.0 + tf.tanh(
-        (np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
+    cdf = 0.5 * (1.0 + tf.tanh((np.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3)))))
     return x * cdf
 
 
@@ -346,7 +345,7 @@ def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
         initialized_variable_names[name] = 1
         initialized_variable_names[name + ":0"] = 1
 
-    return (assignment_map, initialized_variable_names)
+    return assignment_map, initialized_variable_names
 
 
 def dropout(input_tensor, dropout_prob):
@@ -369,8 +368,7 @@ def dropout(input_tensor, dropout_prob):
 
 def layer_norm(input_tensor, name=None):
     """Run layer normalization on the last dimension of the tensor."""
-    return tf.contrib.layers.layer_norm(
-        inputs=input_tensor, begin_norm_axis=-1, begin_params_axis=-1, scope=name)
+    return tf.contrib.layers.layer_norm(inputs=input_tensor, begin_norm_axis=-1, begin_params_axis=-1, scope=name)
 
 
 def layer_norm_and_dropout(input_tensor, dropout_prob, name=None):
@@ -414,8 +412,7 @@ def embedding_lookup(input_ids,
         input_ids = tf.expand_dims(input_ids, axis=[-1])
 
     # 初始化embedding的值
-    embedding_table = tf.get_variable(name=word_embedding_name,
-                                      shape=[vocab_size, embedding_size],
+    embedding_table = tf.get_variable(name=word_embedding_name, shape=[vocab_size, embedding_size],
                                       initializer=create_initializer(initializer_range)
                                       )
 
@@ -683,28 +680,20 @@ def attention_layer(from_tensor,
         kernel_initializer=create_initializer(initializer_range))
 
     # `value_layer` = [B*T, N*H]
-    value_layer = tf.layers.dense(
-        to_tensor_2d,
-        num_attention_heads * size_per_head,
-        activation=value_act,
-        name="value",
-        kernel_initializer=create_initializer(initializer_range))
+    value_layer = tf.layers.dense(to_tensor_2d, num_attention_heads * size_per_head, activation=value_act, name="value",
+                                  kernel_initializer=create_initializer(initializer_range))
 
     # `query_layer` = [B, N, F, H]
-    query_layer = transpose_for_scores(query_layer, batch_size,
-                                       num_attention_heads, from_seq_length,
-                                       size_per_head)
+    query_layer = transpose_for_scores(query_layer, batch_size, num_attention_heads, from_seq_length, size_per_head)
 
     # `key_layer` = [B, N, T, H]
-    key_layer = transpose_for_scores(key_layer, batch_size, num_attention_heads,
-                                     to_seq_length, size_per_head)
+    key_layer = transpose_for_scores(key_layer, batch_size, num_attention_heads, to_seq_length, size_per_head)
 
     # Take the dot product between "query" and "key" to get the raw
     # attention scores.
     # `attention_scores` = [B, N, F, T]
     attention_scores = tf.matmul(query_layer, key_layer, transpose_b=True)
-    attention_scores = tf.multiply(attention_scores,
-                                   1.0 / math.sqrt(float(size_per_head)))
+    attention_scores = tf.multiply(attention_scores, 1.0 / math.sqrt(float(size_per_head)))
 
     if attention_mask is not None:
         # `attention_mask` = [B, 1, F, T]
@@ -728,9 +717,7 @@ def attention_layer(from_tensor,
     attention_probs = dropout(attention_probs, attention_probs_dropout_prob)
 
     # `value_layer` = [B, T, N, H]
-    value_layer = tf.reshape(
-        value_layer,
-        [batch_size, to_seq_length, num_attention_heads, size_per_head])
+    value_layer = tf.reshape(value_layer, [batch_size, to_seq_length, num_attention_heads, size_per_head])
 
     # `value_layer` = [B, N, T, H]
     value_layer = tf.transpose(value_layer, [0, 2, 1, 3])
@@ -743,14 +730,10 @@ def attention_layer(from_tensor,
 
     if do_return_2d_tensor:
         # `context_layer` = [B*F, N*H]
-        context_layer = tf.reshape(
-            context_layer,
-            [batch_size * from_seq_length, num_attention_heads * size_per_head])
+        context_layer = tf.reshape(context_layer, [batch_size * from_seq_length, num_attention_heads * size_per_head])
     else:
         # `context_layer` = [B, F, N*H]
-        context_layer = tf.reshape(
-            context_layer,
-            [batch_size, from_seq_length, num_attention_heads * size_per_head])
+        context_layer = tf.reshape(context_layer, [batch_size, from_seq_length, num_attention_heads * size_per_head])
 
     return context_layer
 
