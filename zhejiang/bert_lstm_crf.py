@@ -23,6 +23,7 @@ from modeling import get_assignment_map_from_checkpoint, BertConfig
 from optimization import create_optimizer
 from zhejiang.conlleval import return_report
 
+
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
@@ -57,28 +58,7 @@ class DataProcessor(object):
 
     @classmethod
     def _read_data(cls, input_file):
-        """Reads a BIO data."""
-        with codecs.open(input_file, 'r', encoding='utf-8') as f:
-            lines = []
-            words = []
-            labels = []
-            for line in f:
-                contends = line.strip()
-                tokens = contends.split('\t')
-                if len(tokens) == 2:
-                    words.append(tokens[0])
-                    labels.append(tokens[1])
-                else:
-                    # 一个句子的结果整理完毕， 每个信号均用空格进行分割
-                    if len(contends) == 0:
-                        l = ' '.join([label for label in labels if len(label) > 0])
-                        w = ' '.join([word for word in words if len(word) > 0])
-                        lines.append([l, w])
-                        words = []
-                        labels = []
-                        continue
-            # 将每个样本输入序列 和 输出  label作为 二元list对保存在list中
-            return lines
+        pass
 
 
 class NerProcessor(DataProcessor):
@@ -87,15 +67,19 @@ class NerProcessor(DataProcessor):
         self.output_dir = output_dir
 
     def get_train_examples(self, data_dir):
+        logger.info("get_train_examples")
         return self._create_example(self._read_data(os.path.join(data_dir, "train.txt")), "train")
 
     def get_dev_examples(self, data_dir):
+        logger.info("get_dev_examples")
         return self._create_example(self._read_data(os.path.join(data_dir, "dev.txt")), "dev")
 
     def get_test_examples(self, data_dir):
+        logger.info("get_test_examples")
         return self._create_example(self._read_data(os.path.join(data_dir, "test.txt")), "test")
 
     def get_labels(self, labels=None):
+        logger.info(self.labels)
         # 整理最终输出预测的label， 这里的超级混乱，有些不必要
         if labels is not None:
             try:
@@ -110,11 +94,13 @@ class NerProcessor(DataProcessor):
                 self.labels = set(self.labels)  # to set
             except Exception as e:
                 print(e)
+
         # 通过读取train文件获取标签的方法会出现一定的风险。
         if os.path.exists(os.path.join(self.output_dir, 'label_list.pkl')):
             with codecs.open(os.path.join(self.output_dir, 'label_list.pkl'), 'rb') as rf:
                 self.labels = pickle.load(rf)
         else:
+            logger.info(self.labels)
             if len(self.labels) > 0:
                 # 为什么还需要添加X SEP？？？？？
                 self.labels = self.labels.union({"X", "[CLS]", "[SEP]"})
@@ -135,6 +121,35 @@ class NerProcessor(DataProcessor):
             #     print('label: ', label)
             examples.append(InputExample(guid=guid, text=text, label=label))
         return examples
+
+    def _read_data(self, input_file):
+        # 对父类的方法进行重写
+        """Reads a BIO data."""
+        logger.info(input_file)
+        """Reads a BIO data."""
+        with codecs.open(input_file, 'r', encoding='utf-8') as f:
+            lines = []
+            words = []
+            labels = []
+            for line in f:
+                contends = line.strip()
+                tokens = contends.split('\t')
+                if len(tokens) == 2:
+                    words.append(tokens[0])
+                    labels.append(tokens[1])
+                    self.labels.add(tokens[1])
+                else:
+                    # 一个句子的结果整理完毕， 每个信号均用空格进行分割
+                    if len(contends) == 0:
+                        l = ' '.join([label for label in labels if len(label) > 0])
+                        w = ' '.join([word for word in words if len(word) > 0])
+                        lines.append([l, w])
+                        words = []
+                        labels = []
+                        continue
+            # 将每个样本输入序列 和 输出  label作为 二元list对保存在list中
+            logger.info(lines)
+            return lines
 
 
 def write_tokens(tokens, output_dir, mode):
@@ -225,7 +240,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     # 输入的词汇转化为词典定义好的id
     input_ids = tokenizer.convert_tokens_to_ids(ntokens)  # 将序列中的字(ntokens)转化为ID形式
-    input_mask = [1] * len(input_ids)  # 此处何用啊？？？？
+    input_mask = [1] * len(input_ids)  # 此处何用啊？？？？ 对于真实存在输入信号的位置为1, 不足填充0
     # label_mask = [1] * len(input_ids)
     # padding, 使用， 长度不够进行填充0
     while len(input_ids) < max_seq_length:
@@ -345,8 +360,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
     return input_fn
 
 
-def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate,
-                     num_train_steps, num_warmup_steps, args):
+def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, num_train_steps, num_warmup_steps, args):
     """
     构建模型
     :param bert_config:
@@ -480,6 +494,7 @@ def adam_filter(model_path):
 
 
 def train(args):
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ['CUDA_VISIBLE_DEVICES'] = args.device_map
 
     processors = {
@@ -517,6 +532,7 @@ def train(args):
         os.mkdir(args.output_dir)
 
     processor = processors[args.ner](args.output_dir)
+    logger.info(args.data_dir)
 
     tokenizer = FullTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
 
@@ -541,6 +557,7 @@ def train(args):
     if args.do_train and args.do_eval:
         # 加载训练数据
         train_examples = processor.get_train_examples(args.data_dir)
+        logger.info(len(train_examples))
         num_train_steps = int(len(train_examples) * 1.0 / args.batch_size * args.num_train_epochs)
         if num_train_steps < 1:
             raise AttributeError('training data is so small...')
@@ -558,6 +575,8 @@ def train(args):
         logger.info("  Num examples = %d", len(eval_examples))
         logger.info("  Batch size = %d", args.batch_size)
 
+    # labels = ["B_at", "I_at", "B_ot", "I_ot", "O"]
+    # label_list = processor.get_labels(labels)
     label_list = processor.get_labels()
     # 返回的model_dn 是一个函数，其定义了模型，训练，评测方法，并且使用钩子参数，加载了BERT模型的参数进行了自己模型的参数初始化过程
     # tf 新的架构方法，通过定义model_fn 函数，定义模型，然后通过EstimatorAPI进行模型的其他工作，Es就可以控制模型的训练，预测，评估工作等。
@@ -586,7 +605,6 @@ def train(args):
         if not os.path.exists(train_file):
             filed_based_convert_examples_to_features(train_examples, label_list, args.max_seq_length, tokenizer,
                                                      train_file, args.output_dir)
-
         # 2.读取record 数据，组成batch
         train_input_fn = file_based_input_fn_builder(
             input_file=train_file,
@@ -599,7 +617,6 @@ def train(args):
         if not os.path.exists(eval_file):
             filed_based_convert_examples_to_features(eval_examples, label_list, args.max_seq_length, tokenizer,
                                                      eval_file, args.output_dir)
-
         eval_input_fn = file_based_input_fn_builder(
             input_file=eval_file,
             seq_length=args.max_seq_length,
