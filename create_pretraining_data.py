@@ -23,12 +23,17 @@ import random
 import tokenization
 import tensorflow as tf
 from mylogger import logger
+from tqdm import tqdm
+import multiprocessing
+# from multiprocessing import Pool  # 多进程会报错
+from multiprocessing.pool import ThreadPool as Pool  # 采用多线程替代
 
 flags = tf.flags
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string("input_file", "./sample_text.txt",
+# flags.DEFINE_string("input_file", "./sample_text.txt",
+flags.DEFINE_string("input_file", r"D:\projects_py\bert\data\zhejiang\goods_zh_fine_tune.txt",
                     "pre train 的文本数据， 可以是多个用逗号分隔的文件， 每个文件用很多doc 用空行分开"
                     "Input raw text file (or comma-separated list of files).")
 
@@ -45,7 +50,8 @@ flags.DEFINE_bool("do_lower_case", True,
 flags.DEFINE_bool("do_whole_word_mask", False,
                   "Whether to use whole word masking rather than per-WordPiece masking.")
 
-flags.DEFINE_integer("max_seq_length", 128,
+# flags.DEFINE_integer("max_seq_length", 128,
+flags.DEFINE_integer("max_seq_length", 64,   # 避免资源耗尽
                      "Maximum sequence length.")
 
 # 一个句子被mask掉的词汇上限
@@ -234,14 +240,30 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
     vocab_words = list(tokenizer.vocab.keys())
     # 样本例子
     instances = []
-    for _ in range(dupe_factor):
-        # 每个文本进行重复利用
-        for document_index in range(len(all_documents)):
+    # for _ in range(dupe_factor):
+    #     # 每个文本进行重复利用
+    #     for document_index in tqdm(range(len(all_documents))):
+    #         instances.extend(
+    #             # 用 doc 创造样本
+    #             create_instances_from_document(all_documents, document_index, max_seq_length, short_seq_prob,
+    #                                            masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
+    #         )
+
+    # 采用多线程进行处理
+    def create_instance(intNum):
+        logger.info(intNum)
+        for document_index in tqdm(range(len(all_documents))):
             instances.extend(
                 # 用 doc 创造样本
                 create_instances_from_document(all_documents, document_index, max_seq_length, short_seq_prob,
                                                masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
             )
+    list(map(create_instance, range(10)))
+    # pool = Pool(10)
+    # pool.map(create_instance, range(10))
+    # pool.close()
+    # pool.join()
+    # logger.info("多线程处理数据")
 
     rng.shuffle(instances)
     return instances
@@ -287,14 +309,16 @@ def create_instances_from_document(all_documents,  # 所有docs
     # logger.info(document)
     # logger.info(len(document))
     while i < len(document):
+        # if i % 1e4 == 0:
+        #     logger.info("%d / %d" % (i, len(document)))
         segment = document[i]  # doc 的一个句子
-        logger.info(i)
+        # logger.info(i)
         # logger.info(segment)
         current_chunk.append(segment)  # A + B 候选样本
         current_length += len(segment)
         # 一个doc的最后一句, 句子长度加起来已经大于目标最大长度了然后将这些句子合成一个
         if i == len(document) - 1 or current_length >= target_seq_length:
-            logger.info(segment)
+            # logger.info(segment)
             if current_chunk:
                 # `a_end` is how many segments from `current_chunk` go into the `A`
                 # (first) sentence.

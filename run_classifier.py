@@ -606,6 +606,10 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids, l
         # 求均值
         loss = tf.reduce_mean(per_example_loss)
 
+    with tf.Session() as sess:
+        tf.summary.FileWriter("logs/run_classifier/", sess.graph)
+        logger.info("=======================save graph===========================")
+
         return loss, per_example_loss, logits, probabilities
 
 

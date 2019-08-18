@@ -24,6 +24,9 @@ import optimization
 import tensorflow as tf
 from mylogger import logger
 
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 flags = tf.flags
 
 FLAGS = flags.FLAGS
@@ -41,7 +44,8 @@ flags.DEFINE_string("init_checkpoint", "uncased_L-12_H-768_A-12", "restore前面
 # flags.DEFINE_string("init_checkpoint", "uncased_L-12_H-768_A-12\\bert_model", "restore前面已经训练模型的保存位置")
 # flags.DEFINE_string("init_checkpoint", None, "restore前面已经训练模型的保存位置")
 
-flags.DEFINE_integer("max_seq_length", 128,
+# flags.DEFINE_integer("max_seq_length", 128,
+flags.DEFINE_integer("max_seq_length", 64,
                      "The maximum total input sequence length after WordPiece tokenization. "
                      "Sequences longer than this will be truncated, and sequences shorter "
                      "than this will be padded. Must match data generation.")
