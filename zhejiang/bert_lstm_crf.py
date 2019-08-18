@@ -402,6 +402,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
         # 使用参数构建模型,input_idx 就是输入的样本idx表示，label_ids 就是标签的idx表示
+        # trans 为转移矩阵
         total_loss, logits, trans, pred_ids = create_model(
             bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
             num_labels, False, args.dropout_rate, args.lstm_size, args.cell, args.num_layers)
@@ -607,6 +608,7 @@ def train(args):
         'batch_size': args.batch_size
     }
 
+    # 不同场景的dropout设置
     estimator = tf.estimator.Estimator(
         model_fn,
         params=params,
@@ -681,7 +683,9 @@ def train(args):
             is_training=False,
             drop_remainder=predict_drop_remainder)
 
+        # 这里没有进行维特比解码 如何获取序列化标注的结果????
         result = estimator.predict(input_fn=predict_input_fn)
+        logger.info(result)
         output_predict_file = os.path.join(args.output_dir, "label_test.txt")
 
         def result_to_pair(writer):
