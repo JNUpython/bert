@@ -79,7 +79,7 @@ def data_for_squence(input_file, output_file=None):
     if not output_file:
         # 句子序列化
         sentences = list(map(list, sentences))
-        f = lambda list_words: "[cls]\n" + "\n".join(list_words)
+        f = lambda list_words: "\n".join(list_words)
         sentences = list(map(f, sentences))
         with open(r"D:\projects_py\bert\zhejiang\data\test.txt", mode="w", encoding="utf-8") as file:
             file.write("\n\n".join(sentences))

@@ -38,7 +38,8 @@ def get_args_parser():
                         default=r"D:\projects_py\bert\zhejiang\output",
                         help='directory of a pretrained BERT model')
     group1.add_argument('-init_checkpoint', type=str,
-                        default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12",
+                        default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12",  # 初始bert模型
+                        # default=r"D:\projects_py\bert\zhejiang\output",  # 训练后的模型
                         help='Initial checkpoint (usually from a pre-trained BERT model).')
 
     group1.add_argument('-vocab_file', type=str,
@@ -49,14 +50,17 @@ def get_args_parser():
 
     group2.add_argument('-max_seq_length', type=int,
                         default=128,
+                        # default=64,  # 这样做不知是否会有害
                         help='The maximum total input sequence length after WordPiece tokenization.')
 
     group2.add_argument('-do_train', action='store_false',
                         default=True,
+                        # default=False,
                         help='Whether to run training.')
 
     group2.add_argument('-do_eval', action='store_false',
                         default=True,
+                        # default=False,
                         help='Whether to run eval on the dev set.')
 
     group2.add_argument('-do_predict', action='store_false',
@@ -64,7 +68,8 @@ def get_args_parser():
                         help='Whether to run the predict in inference mode on the test set.')
 
     group2.add_argument('-batch_size', type=int,
-                        default=64,
+                        # default=1,
+                        default=32,
                         help='Total batch size for training, eval and predict.')
 
     group2.add_argument('-learning_rate', type=float,
@@ -72,7 +77,7 @@ def get_args_parser():
                         help='The initial learning rate for Adam.')
 
     group2.add_argument('-num_train_epochs', type=float,
-                        default=10,
+                        default=30,
                         help='Total number of training epochs to perform.')
 
     group2.add_argument('-dropout_rate', type=float,
@@ -101,11 +106,11 @@ def get_args_parser():
                         help='which rnn cell used.')
 
     group2.add_argument('-save_checkpoints_steps', type=int,
-                        default=500,
+                        default=50,
                         help='save_checkpoints_steps')
 
     group2.add_argument('-save_summary_steps', type=int,
-                        default=500,
+                        default=5,
                         help='save_summary_steps.')
 
     group2.add_argument('-filter_adam_var', type=bool,
@@ -120,7 +125,8 @@ def get_args_parser():
                         default=True)
 
     group2.add_argument('-device_map', type=str,
-                        default='0',
+                        # default='0',  # GPU
+                        default='-1',  # CPU
                         help='witch device using to train')
 
     # add labels
