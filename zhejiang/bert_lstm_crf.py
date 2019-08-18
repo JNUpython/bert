@@ -76,7 +76,7 @@ class NerProcessor(DataProcessor):
 
     def get_test_examples(self, data_dir):
         logger.info("get_test_examples")
-        return self._create_example(self._read_data(os.path.join(data_dir, "test.txt")), "test")
+        return self._create_example(self._read_data(os.path.join(data_dir, "test.txt"), data_type="test"), "test")
 
     def get_labels(self, labels=None):
         logger.info(self.labels)
@@ -99,6 +99,7 @@ class NerProcessor(DataProcessor):
         if os.path.exists(os.path.join(self.output_dir, 'label_list.pkl')):
             with codecs.open(os.path.join(self.output_dir, 'label_list.pkl'), 'rb') as rf:
                 self.labels = pickle.load(rf)
+                logger.info(self.labels)
         else:
             logger.info(self.labels)
             if len(self.labels) > 0:
@@ -122,7 +123,7 @@ class NerProcessor(DataProcessor):
             examples.append(InputExample(guid=guid, text=text, label=label))
         return examples
 
-    def _read_data(self, input_file):
+    def _read_data(self, input_file, data_type=None):
         # 对父类的方法进行重写
         """Reads a BIO data."""
         logger.info(input_file)
@@ -134,10 +135,20 @@ class NerProcessor(DataProcessor):
             for line in f:
                 contends = line.strip()
                 tokens = contends.split('\t')
-                if len(tokens) == 2:
-                    words.append(tokens[0])
-                    labels.append(tokens[1])
-                    self.labels.add(tokens[1])
+                if len(contends) != 0:
+                    if (len(tokens) == 2) and (data_type != "test"):
+                        # train or dev
+                        words.append(tokens[0])
+                        labels.append(tokens[1])
+                        self.labels.add(tokens[1])
+                    elif (len(tokens) == 1) and (data_type == "test"):
+                        words.append(tokens[0])
+                        labels.append("O")
+                    else:
+                        logger.info(line)
+                        logger.info(tokens)
+                        raise Exception("数据样本准备错误")
+
                 else:
                     # 一个句子的结果整理完毕， 每个信号均用空格进行分割
                     if len(contends) == 0:
@@ -185,6 +196,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     # 1表示从1开始对label进行index化
     for (i, label) in enumerate(label_list, 1):
         label_map[label] = i
+    # logger.info(label_map)
     # 保存label->index 的map
     if not os.path.exists(os.path.join(output_dir, 'label2id.pkl')):
         with codecs.open(os.path.join(output_dir, 'label2id.pkl'), 'wb') as w:
@@ -198,6 +210,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     for i, word in enumerate(textlist):
         # 分词，如果是中文，就是分字,但是对于一些不在BERT的vocab.txt中得字符会被进行WordPice处理（例如中文的引号），可以将所有的分字操作替换为list(input)
         token = tokenizer.tokenize(word)
+        # token = [word]  # 这里不用wordPiece
         tokens.extend(token)
         label_1 = labellist[i]
         for m in range(len(token)):
@@ -239,6 +252,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     label_ids.append(label_map["[SEP]"])
 
     # 输入的词汇转化为词典定义好的id
+    # logger.info(ntokens)
     input_ids = tokenizer.convert_tokens_to_ids(ntokens)  # 将序列中的字(ntokens)转化为ID形式
     input_mask = [1] * len(input_ids)  # 此处何用啊？？？？ 对于真实存在输入信号的位置为1, 不足填充0
     # label_mask = [1] * len(input_ids)
@@ -262,8 +276,8 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     if ex_index < 5:
         logger.info("*** Example ***")
         logger.info("guid: %s" % (example.guid))
-        logger.info("tokens: %s" % " ".join(
-            [printable_text(x) for x in tokens]))
+        # logger.info("tokens: %s" % " ".join([printable_text(x) for x in tokens]))
+        logger.info("tokens: %s" % " ".join(ntokens))
         logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
         logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
         logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
@@ -272,7 +286,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     # 结构化为一个类
     feature = InputFeatures(
-        input_ids=input_ids,
+        input_ids=input_ids,  # 序列化标注的时候从第2个采用用 解析的时候
         input_mask=input_mask,
         segment_ids=segment_ids,
         label_ids=label_ids,
@@ -635,7 +649,8 @@ def train(args):
             run_every_steps=args.save_checkpoints_steps
         )
 
-        train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=num_train_steps, hooks=[early_stopping_hook])
+        train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn, max_steps=num_train_steps,
+                                            hooks=[early_stopping_hook])
 
         eval_spec = tf.estimator.EvalSpec(input_fn=eval_input_fn)
 
@@ -652,8 +667,7 @@ def train(args):
 
         predict_examples = processor.get_test_examples(args.data_dir)
         predict_file = os.path.join(args.output_dir, "predict.tf_record")
-        filed_based_convert_examples_to_features(predict_examples, label_list,
-                                                 args.max_seq_length, tokenizer,
+        filed_based_convert_examples_to_features(predict_examples, label_list, args.max_seq_length, tokenizer,
                                                  predict_file, args.output_dir, mode="test")
 
         logger.info("***** Running prediction*****")

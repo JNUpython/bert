@@ -38,7 +38,8 @@ def get_args_parser():
                         default=r"D:\projects_py\bert\zhejiang\output",
                         help='directory of a pretrained BERT model')
     group1.add_argument('-init_checkpoint', type=str,
-                        default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12",
+                        # default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12",  # 初始bert模型
+                        default=r"D:\projects_py\bert\zhejiang\output",  # 训练后的模型
                         help='Initial checkpoint (usually from a pre-trained BERT model).')
 
     group1.add_argument('-vocab_file', type=str,
@@ -49,15 +50,17 @@ def get_args_parser():
 
     group2.add_argument('-max_seq_length', type=int,
                         # default=128,
-                        default=64,
+                        default=64,  # 这样做不知是否会有害
                         help='The maximum total input sequence length after WordPiece tokenization.')
 
     group2.add_argument('-do_train', action='store_false',
-                        default=True,
+                        # default=True,
+                        default=False,
                         help='Whether to run training.')
 
     group2.add_argument('-do_eval', action='store_false',
-                        default=True,
+                        # default=True,
+                        default=False,
                         help='Whether to run eval on the dev set.')
 
     group2.add_argument('-do_predict', action='store_false',
@@ -122,8 +125,8 @@ def get_args_parser():
                         default=True)
 
     group2.add_argument('-device_map', type=str,
-                        # default='0',
-                        default='-1',
+                        # default='0',  # GPU
+                        default='-1',  # CPU
                         help='witch device using to train')
 
     # add labels
