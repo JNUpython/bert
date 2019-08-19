@@ -3,10 +3,7 @@
 
 """
 @input: Train_labels.csv Train_review.csv
-@output: Data_for_Categories_Polarities.tsv
-
-notice:
-1.
+@output: categories.txt polarities.txt
 
 """
 polarities = {'正面': 'PP', '负面': 'PN','中性':'PU'}
@@ -55,8 +52,7 @@ for type in ['categories','polarities']:
                 if A_start == ' ' and O_start != ' ':
                     tags[O_start] = "B-"+categories[categories_value]
                     tags[O_start+1:O_end] = ["I-"+categories[categories_value]]*len(tags[O_start+1:O_end])
-                _append_rows(cat_file,token_list,tags)
-                cat_file.write(os.linesep)
+
                 # case3: A is not None but O is None
             elif type == 'polarities':
                 # case1: Aspect is not None and polarities is not None
@@ -68,7 +64,11 @@ for type in ['categories','polarities']:
                 if A_start != ' ' and O_start == ' ':
                     tags[A_start] = "B-"+polarities[polarities_value]
                     tags[A_start+1:A_end] = ["I-"+polarities[polarities_value]]*len(tags[A_start+1:A_end])
-                _append_rows(pol_file,token_list,tags)
-                pol_file.write(os.linesep)
+        if type == 'categories':
+            _append_rows(cat_file,token_list,tags)
+            cat_file.write(os.linesep)
+        elif type == 'polarities':
+            _append_rows(pol_file,token_list,tags)
+            pol_file.write(os.linesep)
 cat_file.close()
 pol_file.close()
