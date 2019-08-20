@@ -165,6 +165,89 @@ def data_for_squence(input_file, output_file=None):
             file.write("\n\n".join(text_train))
             file.close()
 
+def count_predcited_aspect_opinion():
+    file = "./output/label_test.txt"
+    with open(file, encoding="utf-8", mode="r") as file:
+        ots = []
+        ats = []
+        flag = None
+        word = ""
+        for line in file.readlines():
+            # logger.info(line)
+            line = line.strip()
+            items = re.split("\s+", line)
+            if len(items) != 3:
+                if word:
+                    if flag == "at":
+                        ats.append(word)
+                        logger.info(word)
+                    elif flag == "ot":
+                        ots.append(word)
+                        logger.info(word)
+                    else:
+                        raise Exception("bug")
+                flag = None
+                word = ""
+                continue
+            # logger.info(items)
+            # 寻找目标词汇
+            if line.endswith("B_at"):
+                # 旧的目标
+                if word:
+                    if flag == "at":
+                        ats.append(word)
+                        logger.info(word)
+                    elif flag == "ot":
+                        ots.append(word)
+                        logger.info(word)
+                    else:
+                        raise Exception("bug")
+                # 新目标
+                flag = "at"
+                word = items[0]
+                continue
+            if word and flag == "at" and line.endswith("I_at"):
+                # 寻找仅仅接着的
+                word += items[0]
+                continue
+            if word and flag == "at" and not line.endswith("I_at"):
+                ats.append(word)
+                logger.info(word)
+                flag = None
+                word = ""
+
+            if line.endswith("B_ot"):
+                # 旧的目标
+                if word:
+                    if flag == "at":
+                        ats.append(word)
+                        logger.info(word)
+                    elif flag == "ot":
+                        ots.append(word)
+                        logger.info(word)
+                    else:
+                        raise Exception("bug")
+                # 新目标
+                flag = "ot"
+                word = items[0]
+                continue
+            if word and flag == "ot" and line.endswith("I_ot"):
+                # 寻找仅仅接着的
+                word += items[0]
+                continue
+            if word and flag == "ot" and not line.endswith("I_ot"):
+                flag = None
+                ots.append(word)
+                logger.info(word)
+                word = ""
+        logger.info(ats)
+        logger.info(ots)
+        logger.info(Counter(ats))
+        logger.info(Counter(ots))
+
+
+
+
 if __name__ == '__main__':
     file_labels = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_labels.csv"
     file_reviews = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv"
@@ -180,5 +263,6 @@ if __name__ == '__main__':
     #         train_count.pop(key)
     # logger.info(train_count)
     # prepare_fine_tune_data()
-    data_for_squence(file_reviews, file_labels)
-    data_for_squence(file_reviews, None)
+    # data_for_squence(file_reviews, file_labels)
+    # data_for_squence(file_reviews, None)
+    count_predcited_aspect_opinion()
