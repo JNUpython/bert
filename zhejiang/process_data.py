@@ -384,6 +384,103 @@ def count_predcited_aspect_opinion():
         logger.info(Counter(ots))
 
 
+def parse_ner_predict(predicted_file, category_ids_file):
+    category_ids = {}
+    for k, v in pd.read_csv(open(category_ids_file)).values:
+        category_ids[v] = k
+    logger.info(category_ids)
+    assert (len(category_ids) != 0)
+
+    # （1）评论ID（ID)：ID是每一条用户评论的唯一标识。
+    #
+    # （2）用户评论（Reviews）：用户对商品的评论原文。
+    #
+    # （3）属性特征词（AspectTerms）：评论原文中的商品属性特征词。例如“价格很便宜”中的“价格”。该字段结果须与评论原文中的表述保持一致。
+    #
+    # （4）观点词（OpinionTerms）：评论原文中，用户对商品某一属性所持有的观点。例如“价格很便宜”中的“很便宜”。该字段结果须与评论原文中的表述保持一致。
+    #
+    # （5）观点极性（Polarity）：用户对某一属性特征的观点所蕴含的情感极性，即负面、中性或正面三类。
+    #
+    # （6）属性种类（Category）：相似或同类的属性特征词构成的属性种类。例如“快递”和“物流”两个属性特征词都可归入“物流”这一属性种类
+    res = []
+    with open(predicted_file, encoding="utf-8", mode="r") as file:
+        items = file.read().strip().split("\n\n")
+        logger.info(len(items))
+
+        # ID AspectTerms Opinions Polarities Categories
+        patt = re.compile(". O O")
+
+        for id, item in enumerate(items, 1):
+            # 分析每个句子
+            review = " ".join([line[0] for line in item.split("\n")])
+            logger.info(review)
+            ner_tokens_fake = [v.strip() for v in patt.split(item.strip()) if v.strip()]  # 这里还没有将标注的分开出来
+            # logger.info(ner_tokens_fake)
+
+            ner_tokens = []
+            for fake in ner_tokens_fake:
+                # 存在识别的结果存在连续现象
+                fake_lines = fake.split("\n")  # ner识别群每个行
+                token = []
+                for line in fake_lines:
+                    if line[4] == "B" and token:
+                        # 以B字母为分割
+                        ner_tokens.append("\n".join(token))
+                        token = [line]
+                    else:
+                        token.append(line)
+                if token:
+                    ner_tokens.append("\n".join(token))
+
+            # logger.info(ner_tokens)
+
+            # 将token拆解成词汇 和 词汇第一个字符对应的标注信息
+            word_info_pairs = []
+            for token in ner_tokens:
+                token_lines = token.split("\n")
+                word = "".join([l[0] for l in token_lines])
+                # 去第一个序列标注化后的结果提取信息
+                if "at" in token_lines[0]:
+                    info = token_lines[0][6:].split("_")
+                else:
+                    info = token_lines[-1][6:].split("_")
+                word_info_pairs.append([word, info])
+
+            # 解析结果到df的行
+            ner_tokens_res = []
+            for index, word_info in enumerate(word_info_pairs):
+                word, info = word_info
+                category = category_ids.get(int(info[1]))
+                logger.info(category)
+                logger.info(info)
+                if info[0] == "at":
+                    aspect = word
+                    # aspect
+                    opinion = None
+                    if index > 0:
+                        # 向前寻找修饰的情感词汇
+                        former_word, former_info = word_info_pairs[index - 1]
+                        if former_info[0] == "ot" and former_info[-1] == "b":
+                            opinion = former_word
+                    if not opinion and index < (len(word_info_pairs) - 1):
+                        # 向后寻找修饰词汇
+                        next_word, next_info = word_info_pairs[index + 1]
+                        if next_info[0] == "ot" and next_info[-1] == "f":
+                            opinion = next_word
+                    row = [id, review, aspect, opinion, None, category, item]
+                    ner_tokens_res.append(row)
+
+                if info[0] == "ot" and info[-1] == "m":
+                    opinion = word
+                    row = [id, review, None, opinion, None, category, item]
+                    ner_tokens_res.append(row)
+            res.extend(ner_tokens_res)
+            # break
+        df = pd.DataFrame(data=res,
+                          columns=["ID", "Review", "AspectTerms", "Opinions", "Polarities", "Categories", "Ner"])
+        df.to_excel("./data/data_ner/ner_res.xlsx", index=False)
+
+
 if __name__ == '__main__':
     file_labels = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_labels.csv"
     file_reviews = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv"
@@ -400,8 +497,10 @@ if __name__ == '__main__':
     # logger.info(train_count)
     # prepare_fine_tune_data()
     # data_for_squence(file_reviews, file_labels)
-    data_for_squence(file_reviews, None)
+    # data_for_squence(file_reviews_, None)
     # count_predcited_aspect_opinion()
     # count_category(file_labels)
-    data_for_squence2(file_reviews, file_labels)
-
+    # data_for_squence2(file_reviews, file_labels)
+    file_predict = r"D:\projects_py\bert\zhejiang\data\data_ner\label_test.txt"
+    file_category_ids = r"D:\projects_py\bert\zhejiang\data\data_ner\category_ids.csv"
+    parse_ner_predict(file_predict, file_category_ids)

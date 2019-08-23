@@ -37,9 +37,10 @@ def get_args_parser():
     group1.add_argument('-output_dir', type=str,
                         default=r"D:\projects_py\bert\zhejiang\output",
                         help='directory of a pretrained BERT model')
+
     group1.add_argument('-init_checkpoint', type=str,
-                        default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12",  # 初始bert模型
-                        # default=r"D:\projects_py\bert\zhejiang\output",  # 训练后的模型
+                        # default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12",  # 初始bert模型
+                        default=r"D:\projects_py\bert\zhejiang\output",  # 训练后的模型
                         help='Initial checkpoint (usually from a pre-trained BERT model).')
 
     group1.add_argument('-vocab_file', type=str,
@@ -77,11 +78,12 @@ def get_args_parser():
                         help='The initial learning rate for Adam.')
 
     group2.add_argument('-num_train_epochs', type=float,
-                        default=30,
+                        default=60,
                         help='Total number of training epochs to perform.')
 
     group2.add_argument('-dropout_rate', type=float,
                         default=0.5,
+                        # default=0.0,
                         help='Dropout rate')
 
     group2.add_argument('-clip', type=float,
@@ -122,7 +124,8 @@ def get_args_parser():
                         help='Whether to lower case the input text.')
 
     group2.add_argument('-clean', type=bool,
-                        default=True)
+                        default=False)
+                        # default=True)
 
     group2.add_argument('-device_map', type=str,
                         # default='0',  # GPU
@@ -131,7 +134,8 @@ def get_args_parser():
 
     # add labels
     group2.add_argument('-label_list', type=str,
-                        default=None,
+                        # default=None,
+                        default=r"D:\projects_py\bert\zhejiang\output\label_list.pkl",
                         help='User define labels， can be a file with one label one line or a string using \',\' split')
 
     parser.add_argument('-verbose', action='store_true',
