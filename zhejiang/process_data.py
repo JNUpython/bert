@@ -451,8 +451,8 @@ def parse_ner_predict(predicted_file, category_ids_file):
             for index, word_info in enumerate(word_info_pairs):
                 word, info = word_info
                 category = category_ids.get(int(info[1]))
-                logger.info(category)
-                logger.info(info)
+                # logger.info(category)
+                # logger.info(info)
                 if info[0] == "at":
                     aspect = word
                     # aspect
@@ -501,6 +501,6 @@ if __name__ == '__main__':
     # count_predcited_aspect_opinion()
     # count_category(file_labels)
     # data_for_squence2(file_reviews, file_labels)
-    file_predict = r"D:\projects_py\bert\zhejiang\data\data_ner\label_test.txt"
-    file_category_ids = r"D:\projects_py\bert\zhejiang\data\data_ner\category_ids.csv"
+    file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
+    file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
     parse_ner_predict(file_predict, file_category_ids)
