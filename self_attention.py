@@ -123,9 +123,9 @@ class SelfAttention2:
         H_reshape = tf.reshape(self.H, [-1, 2 * hidden_size])
         logger.info(get_shape_list(H_reshape))
 
-        with tf.variable_scope("self-attention"):
 
-            with tf.name_scope("self-attention"):
+        with tf.variable_scope("self-attention"):
+            with tf.variable_scope("attention_A"):
                 self.W_s1 = tf.get_variable("W_s1", shape=[2 * hidden_size, d_a_size], initializer=initializer)
                 _H_s1 = tf.nn.tanh(tf.matmul(H_reshape, self.W_s1))
                 self.W_s2 = tf.get_variable("W_s2", shape=[d_a_size, r_size], initializer=initializer)
@@ -133,10 +133,10 @@ class SelfAttention2:
                 _H_s2_reshape = tf.transpose(tf.reshape(_H_s2, [-1, sequence_length, r_size]), [0, 2, 1])
                 self.A = tf.nn.softmax(_H_s2_reshape, name="attention")
 
-            with tf.name_scope("sentence-embedding"):
+            with tf.variable_scope("sentence-embedding"):
                 self.M = tf.matmul(self.A, self.H)
 
-            with tf.name_scope("fully-connected"):
+            with tf.variable_scope("fully-connected"):
                 # self.M_pool = tf.reduce_mean(self.M, axis=1)
                 # W_fc = tf.get_variable("W_fc", shape=[2 * hidden_size, fc_size], initializer=initializer)
                 self.M_flat = tf.reshape(self.M, shape=[-1, 2 * hidden_size * r_size])
@@ -144,13 +144,13 @@ class SelfAttention2:
                 b_fc = tf.Variable(tf.constant(0.1, shape=[fc_size]), name="b_fc")
                 self.fc = tf.nn.relu(tf.nn.xw_plus_b(self.M_flat, W_fc, b_fc), name="fc")
 
-            with tf.name_scope("output"):
+            with tf.variable_scope("output"):
                 W_output = tf.get_variable("W_output", shape=[fc_size, num_classes], initializer=initializer)
                 b_output = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b_output")
                 self.logits = tf.nn.xw_plus_b(self.fc, W_output, b_output, name="logits")
                 self.predictions = tf.argmax(self.logits, 1, name="predictions")
 
-            with tf.name_scope("penalization"):
+            with tf.variable_scope("penalization"):
                 self.AA_T = tf.matmul(self.A, tf.transpose(self.A, [0, 2, 1]))
                 self.I = tf.reshape(tf.tile(tf.eye(r_size), [tf.shape(self.A)[0], 1]), [-1, r_size, r_size])
                 self.P = tf.square(tf.norm(self.AA_T - self.I, axis=[-2, -1], ord="fro"))
