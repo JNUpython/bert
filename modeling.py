@@ -138,18 +138,18 @@ class BertModel(object):
                  input_mask=None,
                  token_type_ids=None,
                  use_one_hot_embeddings=False,
-                 scope=None):
+                 scope=None,
+                 Q_mask=None  # 增加一层encoder层会用到的mask
+                 ):
         """Constructor for BertModel.
 
         Args:
           config: `BertConfig` instance.
-          is_training: bool. true for training model, false for eval model. Controls
-            whether dropout will be applied.
+          is_training: bool. true for training model, false for eval model. Controls whether dropout will be applied.
           input_ids: int32 Tensor of shape [batch_size, seq_length].
           input_mask: (optional) int32 Tensor of shape [batch_size, seq_length].
           token_type_ids: (optional) int32 Tensor of shape [batch_size, seq_length].
-          use_one_hot_embeddings: (optional) bool. Whether to use one-hot word
-            embeddings or tf.embedding_lookup() for the word embeddings.
+          use_one_hot_embeddings: (optional) bool. Whether to use one-hot word embeddings or tf.embedding_lookup() for the word embeddings.
           scope: (optional) variable scope. Defaults to "bert".
 
         Raises:
@@ -167,16 +167,16 @@ class BertModel(object):
         seq_length = input_shape[1]  # 最大序列长度
 
         if input_mask is None:
-            # ？？？？？？？？？？
+            # 不存在 input mask的时候
             input_mask = tf.ones(shape=[batch_size, seq_length], dtype=tf.int32)
 
         if token_type_ids is None:
-            # 序列由两部分组成，为None则默认为由一部分组成
+            # 序列由两部分组成，segment_id 没有定义 为None则默认为由一部分组成
             token_type_ids = tf.zeros(shape=[batch_size, seq_length], dtype=tf.int32)
 
         with tf.variable_scope(scope, default_name="bert"):
             with tf.variable_scope("embeddings"):
-                # Perform embedding lookup on the word ids.
+                # Perform embedding lookup on the word ids. Q K V 的共享线性层？？？？
                 self.embedding_output, self.embedding_table = embedding_lookup(
                     input_ids=input_ids,
                     vocab_size=config.vocab_size,
@@ -186,8 +186,8 @@ class BertModel(object):
                     use_one_hot_embeddings=use_one_hot_embeddings
                 )
 
-                # Add positional embeddings and token type embeddings, then layer
-                # normalize and perform dropout.
+                # Add positional embeddings and token type embeddings, then layer normalize and perform dropout.
+                # 添加 位置 embedding 和 segment embedding
                 self.embedding_output = embedding_postprocessor(
                     input_tensor=self.embedding_output,
                     use_token_type=True,
@@ -201,10 +201,11 @@ class BertModel(object):
                     dropout_prob=config.hidden_dropout_prob
                 )
 
-            with tf.variable_scope("encoder"):
+            with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
                 # This converts a 2D mask of shape [batch_size, seq_length] to a 3D
                 # mask of shape [batch_size, seq_length, seq_length] which is used
                 # for the attention scores.
+                # ？？？？  如何实现 原理
                 attention_mask = create_attention_mask_from_input_mask(input_ids, input_mask)
 
                 # Run the stacked transformer.
@@ -228,7 +229,7 @@ class BertModel(object):
             # [batch_size, hidden_size]. This is necessary for segment-level
             # (or segment-pair-level) classification tasks where we need a fixed
             # dimensional representation of the segment.
-            with tf.variable_scope("pooler"):
+            with tf.variable_scope("pooler", reuse=tf.AUTO_REUSE):
                 # We "pool" the model by simply taking the hidden state corresponding
                 # to the first token. We assume that this has been pre-trained
                 first_token_tensor = tf.squeeze(self.sequence_output[:, 0:1, :], axis=1)
@@ -237,9 +238,40 @@ class BertModel(object):
                                                      activation=tf.tanh,
                                                      kernel_initializer=create_initializer(config.initializer_range)
                                                      )
+            if None != Q_mask:
+                # 增加一种层encoder
+                with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
+                    attention_mask2 = create_attention_mask_from_input_mask(input_ids, Q_mask)
+                    self.all_encoder_layers2 = transformer_model(
+                        input_tensor=self.embedding_output,
+                        attention_mask=attention_mask2,
+                        hidden_size=config.hidden_size,
+                        num_hidden_layers=config.num_hidden_layers,  # 只用到一个 encoder层
+                        num_attention_heads=config.num_attention_heads,
+                        intermediate_size=config.intermediate_size,
+                        intermediate_act_fn=get_activation(config.hidden_act),
+                        hidden_dropout_prob=config.hidden_dropout_prob,
+                        attention_probs_dropout_prob=config.attention_probs_dropout_prob,
+                        initializer_range=config.initializer_range,
+                        do_return_all_layers=True)
+
+                self.sequence_output2 = self.all_encoder_layers2[-1]
+                with tf.variable_scope("pooler", reuse=tf.AUTO_REUSE):
+                    # We "pool" the model by simply taking the hidden state corresponding
+                    # to the first token. We assume that this has been pre-trained
+                    first_token_tensor2 = tf.squeeze(self.sequence_output2[:, 0:1, :], axis=1)
+                    self.pooled_output2 = tf.layers.dense(first_token_tensor2,
+                                                          config.hidden_size,
+                                                          activation=tf.tanh,
+                                                          kernel_initializer=create_initializer(
+                                                              config.initializer_range)
+                                                          )
 
     def get_pooled_output(self):
         return self.pooled_output
+
+    def get_pooled_output2(self):
+        return self.pooled_output2
 
     def get_sequence_output(self):
         """Gets final hidden layer of encoder.
@@ -249,6 +281,9 @@ class BertModel(object):
           to the final hidden of the transformer encoder.
         """
         return self.sequence_output
+
+    def get_sequence_output2(self):
+        return self.sequence_output2
 
     def get_all_encoder_layers(self):
         return self.all_encoder_layers
@@ -392,42 +427,41 @@ def embedding_lookup(input_ids,
     """Looks up words embeddings for id tensor.
 
     Args:
-      input_ids: int32 Tensor of shape [batch_size, seq_length] containing word
-        ids.
+      input_ids: int32 Tensor of shape [batch_size, seq_length] containing word ids.
       vocab_size: int. Size of the embedding vocabulary.
       embedding_size: int. Width of the word embeddings.
       initializer_range: float. Embedding initialization range. 用于初始化时候embedding限制
       word_embedding_name: string. Name of the embedding table.
-      use_one_hot_embeddings: bool. If True, use one-hot method for word
-        embeddings. If False, use `tf.gather()`.
+      use_one_hot_embeddings: bool. If True, use one-hot method for word embeddings. If False, use `tf.gather()`.
 
     Returns:
       float Tensor of shape [batch_size, seq_length, embedding_size].
     """
     # This function assumes that the input is of shape [batch_size, seq_length, num_inputs].  ？？？
-    #
     # If the input is a 2D tensor of shape [batch_size, seq_length], we
     # reshape to [batch_size, seq_length, 1].
     if input_ids.shape.ndims == 2:
         input_ids = tf.expand_dims(input_ids, axis=[-1])
-
-    # 初始化embedding的值
-    embedding_table = tf.get_variable(name=word_embedding_name, shape=[vocab_size, embedding_size],
-                                      initializer=create_initializer(initializer_range)
-                                      )
-
+    logger.info(get_shape_list(input_ids))
+    # 初始化embedding的值 # Q K V 前面的线性层
+    embedding_table = tf.get_variable(
+        name=word_embedding_name, shape=[vocab_size, embedding_size], initializer=create_initializer(initializer_range))
+    logger.info(get_shape_list(embedding_table))
     # 多种维度的特征 按最后一个维度规整到一维？
     flat_input_ids = tf.reshape(input_ids, [-1])
+    logger.info(get_shape_list(flat_input_ids))
     if use_one_hot_embeddings:
         one_hot_input_ids = tf.one_hot(flat_input_ids, depth=vocab_size)
+        logger.info(get_shape_list(one_hot_input_ids))
         # 查表映射下
         output = tf.matmul(one_hot_input_ids, embedding_table)
     else:
-        # 按下标取出字集合？？？？
+        # 按下标取出字集合
         output = tf.gather(embedding_table, flat_input_ids)
 
     input_shape = get_shape_list(input_ids)
-
+    logger.info(input_shape)
+    logger.info(input_shape[0:-1] + [input_shape[-1] * embedding_size])
     # 最后一个维度在这里没有了
     output = tf.reshape(output, input_shape[0:-1] + [input_shape[-1] * embedding_size])
     return output, embedding_table
