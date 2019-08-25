@@ -81,11 +81,11 @@ flags.DEFINE_float("warmup_proportion",
                    "Proportion of training to perform linear learning rate warmup for E.g., 0.1 = 10% of training.")
 
 flags.DEFINE_integer("save_checkpoints_steps",
-                     500,
+                     50,
                      "How often to save the model checkpoint.")
 
 flags.DEFINE_integer("iterations_per_loop",
-                     500,
+                     50,
                      "How many steps to make in each estimator call.")
 
 flags.DEFINE_bool("use_tpu",

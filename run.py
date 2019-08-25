@@ -12,10 +12,10 @@ from __future__ import print_function
 
 import os
 import sys
-from mylogger import logger
+from bert_base.mylogger import logger
 
-from zhejiang.train_helper import get_args_parser
-from zhejiang.bert_lstm_crf import train
+from train_helper import get_args_parser
+from bert_lstm_crf import train
 
 
 def train_ner():

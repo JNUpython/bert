@@ -26,165 +26,359 @@ import optimization
 import tokenization
 import tensorflow as tf
 from mylogger import logger, print_falgs
-from zhejiang.sentiment_flags import FLAGS
-from tqdm import tqdm
-from zhejiang.self_attention import SelfAttention2
 
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'
+flags = tf.flags
+# flags.
+
+FLAGS = flags.FLAGS
+
+## Required parameters
+flags.DEFINE_string("data_dir", None,
+                    "The input data dir. Should contain the .tsv files (or other data files) "
+                    "for the task.")
+
+flags.DEFINE_string("bert_config_file", None,
+                    "The config json file corresponding to the pre-trained BERT model. "
+                    "This specifies the model architecture.")
+
+flags.DEFINE_string("task_name", "CoLA",
+                    "The name of the task to train.")
+
+flags.DEFINE_string("vocab_file", None,
+                    "The vocabulary file that the BERT model was trained on.")
+
+flags.DEFINE_string("output_dir", None,
+                    "The output directory where the model checkpoints will be written.")
+
+## Other parameters
+
+flags.DEFINE_string("init_checkpoint", None,
+                    "Initial checkpoint (usually from a pre-trained BERT model).")
+
+flags.DEFINE_bool("do_lower_case", True,
+                  "Whether to lower case the input text. Should be True for uncased "
+                  "models and False for cased models.")
+
+flags.DEFINE_integer("max_seq_length", 128,
+                     "The maximum total input sequence length after WordPiece tokenization. "
+                     "Sequences longer than this will be truncated, and sequences shorter "
+                     "than this will be padded.")
+
+flags.DEFINE_bool("do_train", False, "Whether to run training.")
+
+flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
+
+flags.DEFINE_bool("do_predict", False,
+                  "Whether to run the model in inference mode on the test set.")
+
+flags.DEFINE_integer("train_batch_size", 32, "Total batch size for training.")
+
+flags.DEFINE_integer("eval_batch_size", 8, "Total batch size for eval.")
+
+flags.DEFINE_integer("predict_batch_size", 8, "Total batch size for predict.")
+
+flags.DEFINE_float("learning_rate", 5e-5, "The initial learning rate for Adam.")
+
+flags.DEFINE_float("num_train_epochs", 3.0,
+                   "Total number of training epochs to perform.")
+
+flags.DEFINE_float("warmup_proportion", 0.1,
+                   "Proportion of training to perform linear learning rate warmup for. "
+                   "E.g., 0.1 = 10% of training.")
+
+flags.DEFINE_integer("save_checkpoints_steps", 1000,
+                     "How often to save the model checkpoint.")
+
+flags.DEFINE_integer("iterations_per_loop", 1000,
+                     "How many steps to make in each estimator call.")
+
+flags.DEFINE_bool("use_tpu", False, "Whether to use TPU or GPU/CPU.")
+
+tf.flags.DEFINE_string("tpu_name", None,
+                       "The Cloud TPU to use for training. This should be either the name "
+                       "used when creating the Cloud TPU, or a grpc://ip.address.of.tpu:8470 "
+                       "url.")
+
+tf.flags.DEFINE_string("tpu_zone", None,
+                       "[Optional] GCE zone where the Cloud TPU is located in. If not "
+                       "specified, we will attempt to automatically detect the GCE project from "
+                       "metadata.")
+
+tf.flags.DEFINE_string("gcp_project", None,
+                       "[Optional] Project name for the Cloud TPU-enabled project. If not "
+                       "specified, we will attempt to automatically detect the GCE project from "
+                       "metadata.")
+
+tf.flags.DEFINE_string("master", None, "[Optional] TensorFlow master URL.")
+
+flags.DEFINE_integer("num_tpu_cores", 8,
+                     "Only used if `use_tpu` is True. Total number of TPU cores to use.")
 
 
-class InputExample:
-    """输入样本"""
+# print(FLAGS)
 
-    def __init__(self, guid, text_a, text_b=None, label=None, aspect=None, opinion=None):
+
+class InputExample(object):
+    """A single training/test example for simple sequence classification."""
+
+    def __init__(self, guid, text_a, text_b=None, label=None):
         """Constructs a InputExample.
-          guid: ID
-          text_a: string. The untokenized text of the first sequence. For single sequence tasks, only this sequence must be specified.
-          text_b: (Optional) string. The untokenized text of the second sequence. Only must be specified for sequence pair tasks.
-          label: (Optional) string. The label of the example. This should be specified for train and dev examples, but not for test examples.
+
+        Args:
+          guid: Unique id for the example.
+          text_a: string. The untokenized text of the first sequence. For single
+            sequence tasks, only this sequence must be specified.
+          text_b: (Optional) string. The untokenized text of the second sequence.
+            Only must be specified for sequence pair tasks.
+          label: (Optional) string. The label of the example. This should be
+            specified for train and dev examples, but not for test examples.
         """
         self.guid = guid
         self.text_a = text_a
         self.text_b = text_b
         self.label = label
-        self.aspect = aspect
-        self.opinion = opinion
-
-    def __str__(self):
-        return "InputExample: %s" % "\n".join(
-            [str(v) for v in [self.guid, self.text_a, self.text_b, self.label, self.aspect, self.opinion]])
 
 
-class PaddingInputExample:
+class PaddingInputExample(object):
     """Fake example so the num input examples is a multiple of the batch size.
+
     When running eval/predict on the TPU, we need to pad the number of examples
     to be a multiple of the batch size, because the TPU requires a fixed batch
     size. The alternative is to drop the last batch, which is bad because it means
     the entire output data won't be generated.
+
     We use this class instead of `None` because treating `None` as padding
     battches could cause silent errors.
     """
 
 
-class InputFeatures:
+class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_id, Q_mask, is_real_example=True):
-        # 输入的文本id序列
+    def __init__(self,
+                 input_ids,
+                 input_mask,
+                 segment_ids,
+                 label_id,
+                 is_real_example=True):
         self.input_ids = input_ids
-        # 对应的序列是否被 mask
         self.input_mask = input_mask
-        # 如果是多个句子组成，需要利用此序列标注进行分割
         self.segment_ids = segment_ids
-        # 序列化标注的结果，或者分类的结果
         self.label_id = label_id
-        self.Q_mask = Q_mask
-        # ??
         self.is_real_example = is_real_example
 
 
-class DataProcessor:
-    """
-    数据预处理的抽象函数
-    """
+class DataProcessor(object):
+    """Base class for data converters for sequence classification data sets."""
 
     def get_train_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
         raise NotImplementedError()
 
     def get_dev_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the dev set."""
         raise NotImplementedError()
 
     def get_test_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for prediction."""
         raise NotImplementedError()
 
     def get_labels(self):
+        """Gets the list of labels for this data set."""
         raise NotImplementedError()
 
     @classmethod
     def _read_tsv(cls, input_file, quotechar=None):
-        raise NotImplementedError()
-
-
-class ZhejiangProcesser(DataProcessor):
-    """读取枝江的情感分析分析"""
-
-    def _read_tsv(cls, input_file, quotechar=None):
         """Reads a tab separated value file."""
         logger.info("_read_tsv file: %s" % input_file)
-        reader = csv.reader(open(input_file, encoding="GBK", mode="r"), delimiter=",", quotechar=quotechar)
-        lines = []
-        for line in reader:
-            # logger.info(line)
-            lines.append(line)
-        # for test：测试模型是否通
-        # lines = lines[:32]
-        return lines
+        with tf.gfile.Open(input_file, "r") as f:
+            reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
+            lines = []
+            for line in reader:
+                # logger.info(line)
+                lines.append(line)
+            return lines
+
+
+class XnliProcessor(DataProcessor):
+    """Processor for the XNLI data set."""
+
+    def __init__(self):
+        self.language = "zh"
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        lines = self._read_tsv(os.path.join(data_dir, "multinli", "multinli.train.%s.tsv" % self.language))
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            guid = "train-%d" % (i)
+            text_a = tokenization.convert_to_unicode(line[0])
+            text_b = tokenization.convert_to_unicode(line[1])
+            label = tokenization.convert_to_unicode(line[2])
+            if label == tokenization.convert_to_unicode("contradictory"):
+                label = tokenization.convert_to_unicode("contradiction")
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        lines = self._read_tsv(os.path.join(data_dir, "xnli.dev.tsv"))
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            guid = "dev-%d" % (i)
+            language = tokenization.convert_to_unicode(line[0])
+            if language != tokenization.convert_to_unicode(self.language):
+                continue
+            text_a = tokenization.convert_to_unicode(line[6])
+            text_b = tokenization.convert_to_unicode(line[7])
+            label = tokenization.convert_to_unicode(line[1])
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
+    def get_labels(self):
+        """See base class."""
+        return ["contradiction", "entailment", "neutral"]
+
+
+class MnliProcessor(DataProcessor):
+    """Processor for the MultiNLI data set (GLUE version)."""
 
     def get_train_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "train.csv")),
-            "train")
+            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
 
     def get_dev_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "dev.csv")),
-            "dev")
+            self._read_tsv(os.path.join(data_dir, "dev_matched.tsv")),
+            "dev_matched")
 
     def get_test_examples(self, data_dir):
         """See base class."""
         return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "test.csv")),
-            "test")
+            self._read_tsv(os.path.join(data_dir, "test_matched.tsv")), "test")
 
     def get_labels(self):
         """See base class."""
-        return ["0", "1", "2"]
+        return ["contradiction", "entailment", "neutral"]
 
     def _create_examples(self, lines, set_type):
         """Creates examples for the training and dev sets."""
         examples = []
-        for (i, line) in enumerate(lines[1:]):
-            # Only the test set has a header
-            # logger.info(line[0])
-            guid = "%s-%s" % (set_type, i)
-            # 原始数据不需要经过处理，直接选取1， 3 列
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            guid = "%s-%s" % (set_type, tokenization.convert_to_unicode(line[0]))
+            text_a = tokenization.convert_to_unicode(line[8])
+            text_b = tokenization.convert_to_unicode(line[9])
             if set_type == "test":
-                text_a = tokenization.convert_to_unicode(line[-1])
-                label = "0"
-
+                label = "contradiction"
             else:
-                text_a = tokenization.convert_to_unicode(line[-1])
-                label = tokenization.convert_to_unicode(line[3])
+                label = tokenization.convert_to_unicode(line[-1])
             examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=None, label=label, aspect=line[1], opinion=line[2]))
-            # logger.info(examples[0])
-            # break
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
 
 
-def convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer):
-    """
-    将一个InputExample 计算序列化 转化为 InputExample
-    :param ex_index:
-    :param example:
-    :param label_list:
-    :param max_seq_length:
-    :param tokenizer:
-    :return:
-    """
+class MrpcProcessor(DataProcessor):
+    """Processor for the MRPC data set (GLUE version)."""
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            guid = "%s-%s" % (set_type, i)
+            text_a = tokenization.convert_to_unicode(line[3])
+            text_b = tokenization.convert_to_unicode(line[4])
+            if set_type == "test":
+                label = "0"
+            else:
+                label = tokenization.convert_to_unicode(line[0])
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
+
+class ColaProcessor(DataProcessor):
+    """Processor for the CoLA data set (GLUE version)."""
+
+    # def __init__(self):
+    #     super.__init__()
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            # Only the test set has a header
+            if set_type == "test" and i == 0:
+                continue
+            guid = "%s-%s" % (set_type, i)
+            # 原始数据不需要经过处理，直接选取1， 3 列
+            if set_type == "test":
+                text_a = tokenization.convert_to_unicode(line[1])
+                label = "0"
+            else:
+                text_a = tokenization.convert_to_unicode(line[3])
+                label = tokenization.convert_to_unicode(line[1])
+            examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+        return examples
+
+
+def convert_single_example(ex_index, example, label_list, max_seq_length,
+                           tokenizer):
+    """Converts a single `InputExample` into a single `InputFeatures`."""
 
     if isinstance(example, PaddingInputExample):
-        # 最后一个batch可能存在数量不够用 空的来充数
         return InputFeatures(
             input_ids=[0] * max_seq_length,
             input_mask=[0] * max_seq_length,
             segment_ids=[0] * max_seq_length,
             label_id=0,
-            Q_mask=[0] * max_seq_length,
             is_real_example=False)
 
     label_map = {}
@@ -195,6 +389,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     tokens_b = None
     if example.text_b:
         tokens_b = tokenizer.tokenize(example.text_b)
+
     if tokens_b:
         # Modifies `tokens_a` and `tokens_b` in place so that the total
         # length is less than the specified length.
@@ -242,17 +437,6 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
-    # 计算 Q_mask
-    Q_mask = "\t".join(tokens)
-    if example.aspect:
-        aspect = "\t".join(list(example.aspect))
-        Q_mask = Q_mask.replace(aspect, "\t".join(["mask"] * len(example.aspect)))
-
-    if example.opinion:
-        opinion = "\t".join(list(example.opinion))
-        Q_mask = Q_mask.replace(opinion, "\t".join(["mask"] * len(example.opinion)))
-    Q_mask = [1 if v == "mask" else 0 for v in Q_mask.split("\t")]
-
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
     # tokens are attended to.
     input_mask = [1] * len(input_ids)
@@ -262,21 +446,19 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         input_ids.append(0)
         input_mask.append(0)
         segment_ids.append(0)
-        Q_mask.append(0)
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
-    assert len(Q_mask) == max_seq_length
 
     label_id = label_map[example.label]
-    if ex_index < 3:
+    if ex_index < 5:
         logger.info("*** Example ***")
         logger.info("guid: %s" % (example.guid))
-        logger.info("tokens: %s" % " ".join([tokenization.printable_text(x) for x in tokens]))
+        logger.info("tokens: %s" % " ".join(
+            [tokenization.printable_text(x) for x in tokens]))
         logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
         logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-        logger.info("Q_mask: %s" % " ".join([str(x) for x in Q_mask]))
         logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
         logger.info("label: %s (id = %d)" % (example.label, label_id))
 
@@ -285,25 +467,21 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         input_mask=input_mask,
         segment_ids=segment_ids,
         label_id=label_id,
-        Q_mask=Q_mask,
         is_real_example=True)
     return feature
 
 
 def file_based_convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_file):
-    """
-    将序列化后的InputFeature 转化为 tfrecord
-    :param examples:
-    :param label_list:
-    :param max_seq_length:
-    :param tokenizer:
-    :param output_file:
-    :return:
-    """
+    """Convert a set of `InputExample`s to a TFRecord file."""
+
     writer = tf.python_io.TFRecordWriter(output_file)
-    logger.info("数据准备....")
-    for (ex_index, example) in tqdm(enumerate(examples)):
-        feature = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
+
+    for (ex_index, example) in enumerate(examples):
+        if ex_index % 10000 == 0:
+            logger.info("Writing example %d of %d" % (ex_index, len(examples)))
+
+        feature = convert_single_example(ex_index, example, label_list,
+                                         max_seq_length, tokenizer)
 
         def create_int_feature(values):
             f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
@@ -314,13 +492,12 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
         features["input_mask"] = create_int_feature(feature.input_mask)
         features["segment_ids"] = create_int_feature(feature.segment_ids)
         features["label_ids"] = create_int_feature([feature.label_id])
-        features["is_real_example"] = create_int_feature([int(feature.is_real_example)])
-        features["Q_mask"] = create_int_feature(feature.Q_mask)
+        features["is_real_example"] = create_int_feature(
+            [int(feature.is_real_example)])
 
         tf_example = tf.train.Example(features=tf.train.Features(feature=features))
         writer.write(tf_example.SerializeToString())
     writer.close()
-    logger.info("数据准备完成！")
 
 
 def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remainder):
@@ -329,7 +506,6 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
     name_to_features = {
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
-        "Q_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "label_ids": tf.FixedLenFeature([], tf.int64),
         "is_real_example": tf.FixedLenFeature([], tf.int64),
@@ -389,9 +565,7 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
 
 
 def create_model(bert_config, is_training, input_ids, input_mask, segment_ids, labels, num_labels,
-                 use_one_hot_embeddings, Q_mask,
-                 p_coef=0.004  # 注意机制的惩罚系数
-                 ):
+                 use_one_hot_embeddings):
     """Creates a classification model."""
     model = modeling.BertModel(
         config=bert_config,
@@ -399,8 +573,7 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids, l
         input_ids=input_ids,
         input_mask=input_mask,
         token_type_ids=segment_ids,
-        use_one_hot_embeddings=use_one_hot_embeddings,
-        Q_mask=Q_mask
+        use_one_hot_embeddings=use_one_hot_embeddings
     )
 
     # In the demo, we are doing a simple classification task on the entire segment.
@@ -408,39 +581,35 @@ def create_model(bert_config, is_training, input_ids, input_mask, segment_ids, l
     # If you want to use the token-level output, use model.get_sequence_output()
     # instead.
 
-    output_layer = model.get_sequence_output()  # 隐藏层最后的输出
-    logger.info(modeling.get_shape_list(output_layer))
-    output_layer2 = model.get_sequence_output2()
-    logger.info(modeling.get_shape_list(output_layer2))
+    output_layer = model.get_pooled_output()   # 隐藏层最后的输出
 
-    if is_training:
-        # I.e., 0.1 dropout
-        output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
-        output_layer2 = tf.nn.dropout(output_layer2, keep_prob=0.9)
+    hidden_size = output_layer.shape[-1].value
 
-    # 添加一个住一层输出机制
-    # 这里几个参数 d_a 是超参数，代表网络的复杂程度，就像网络的层数一样
-    # fc 全连接的层的节点的大小
-    # r_size 代表对句子embedding的维度的序列长度大小
-    aspect_opinion_attention = SelfAttention2(output_layer, output_layer2, num_classes=num_labels,
-                                              d_a_size=128,
-                                              r_size=32,
-                                              fc_size=10
-                                              )
-    logits, panel = aspect_opinion_attention.get_output()
+    output_weights = tf.get_variable("output_weights", [num_labels, hidden_size], initializer=tf.truncated_normal_initializer(stddev=0.02))
 
-    probabilities = tf.nn.softmax(logits, axis=-1)
-    log_probs = tf.nn.log_softmax(logits, axis=-1)
+    output_bias = tf.get_variable("output_bias", [num_labels], initializer=tf.zeros_initializer())
 
-    one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
-    # 每个样本的交叉信息熵
-    per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
-    # 求均值损失 + 注意的损失惩罚
-    loss = tf.reduce_mean(per_example_loss) + tf.reduce_mean(panel * p_coef)
+    with tf.variable_scope("loss"):
+        if is_training:
+            # I.e., 0.1 dropout
+            output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
+
+        logits = tf.matmul(output_layer, output_weights, transpose_b=True)
+        logits = tf.nn.bias_add(logits, output_bias)
+        probabilities = tf.nn.softmax(logits, axis=-1)
+        # ？？？？
+        log_probs = tf.nn.log_softmax(logits, axis=-1)
+
+        one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
+        # 每个样本的交叉信息熵
+        per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
+        # 求均值
+        loss = tf.reduce_mean(per_example_loss)
 
     with tf.Session() as sess:
         tf.summary.FileWriter("logs/run_classifier/", sess.graph)
         logger.info("=======================save graph===========================")
+
         return loss, per_example_loss, logits, probabilities
 
 
@@ -456,6 +625,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
     def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
         # features ？？？
         """The `model_fn` for TPUEstimator."""
+
         logger.info("******************************* Features ***********************************")
         for name in sorted(features.keys()):
             logger.info("  name = %s, shape = %s" % (name, features[name].shape))
@@ -465,7 +635,6 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
         input_mask = features["input_mask"]
         segment_ids = features["segment_ids"]
         label_ids = features["label_ids"]
-        Q_mask = features["Q_mask"]
         is_real_example = None
         if "is_real_example" in features:
             is_real_example = tf.cast(features["is_real_example"], dtype=tf.float32)
@@ -475,18 +644,18 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
         # 模型搭建
-        logger.info(Q_mask)
         total_loss, per_example_loss, logits, probabilities = create_model(
-            bert_config, is_training, input_ids, input_mask, segment_ids, label_ids, num_labels, use_one_hot_embeddings,
-            Q_mask=Q_mask)
+            bert_config, is_training, input_ids, input_mask, segment_ids, label_ids, num_labels, use_one_hot_embeddings
+        )
 
         tvars = tf.trainable_variables()
         initialized_variable_names = {}
-        scaffold_fn = None
+        scaffold_fn = None  # ？？？？？？？？？？
         if init_checkpoint:
             # 加载pre train的模型
-            assignment_map, initialized_variable_names = modeling.get_assignment_map_from_checkpoint(
-                tvars, init_checkpoint)
+            # ？？？？？？？？？？？？？
+            assignment_map, initialized_variable_names = modeling.get_assignment_map_from_checkpoint(tvars,
+                                                                                                     init_checkpoint)
 
             if use_tpu:
 
@@ -559,12 +728,10 @@ def input_fn_builder(features, seq_length, is_training, drop_remainder):
     all_input_mask = []
     all_segment_ids = []
     all_label_ids = []
-    all_Q_mask = []
 
     for feature in features:
         all_input_ids.append(feature.input_ids)
         all_input_mask.append(feature.input_mask)
-        all_Q_mask.append(feature.Q_mask)
         all_segment_ids.append(feature.segment_ids)
         all_label_ids.append(feature.label_id)
 
@@ -585,11 +752,6 @@ def input_fn_builder(features, seq_length, is_training, drop_remainder):
             "input_mask":
                 tf.constant(
                     all_input_mask,
-                    shape=[num_examples, seq_length],
-                    dtype=tf.int32),
-            "Q_mask":
-                tf.constant(
-                    all_Q_mask,
                     shape=[num_examples, seq_length],
                     dtype=tf.int32),
             "segment_ids":
@@ -613,7 +775,8 @@ def input_fn_builder(features, seq_length, is_training, drop_remainder):
 
 # This function is not used by this file but is still used by the Colab and
 # people who depend on it.
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
+def convert_examples_to_features(examples, label_list, max_seq_length,
+                                 tokenizer):
     """Convert a set of `InputExample`s to a list of `InputFeatures`."""
 
     features = []
@@ -632,7 +795,10 @@ def main(_):
     # tf.logging.set_verbosity(logger.info)
 
     processors = {
-        "zhejiang": ZhejiangProcesser,
+        "cola": ColaProcessor,
+        "mnli": MnliProcessor,
+        "mrpc": MrpcProcessor,
+        "xnli": XnliProcessor,
     }
 
     tokenization.validate_case_matches_checkpoint(FLAGS.do_lower_case, FLAGS.init_checkpoint)
@@ -645,7 +811,8 @@ def main(_):
     # fine tuning 句子的长度不能比 pre train 长
     if FLAGS.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
-            "Cannot use sequence length %d because the BERT model was only trained up to sequence length %d" %
+            "Cannot use sequence length %d because the BERT model "
+            "was only trained up to sequence length %d" %
             (FLAGS.max_seq_length, bert_config.max_position_embeddings))
 
     # 创建输出文件夹
@@ -662,7 +829,6 @@ def main(_):
 
     # 事先定义好分类类别的label集合
     label_list = processor.get_labels()
-    logger.info(label_list)
 
     # 加载词典，并将词典编号处理
     tokenizer = tokenization.FullTokenizer(vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
@@ -835,22 +1001,22 @@ def main(_):
 
 if __name__ == "__main__":
     # set paras data for test
-    # FLAGS.task_name = "cola"
-    # FLAGS.bert_config_file = "uncased_L-12_H-768_A-12/bert_config.json"
-    # FLAGS.data_dir = "data/cola_public/format"
-    # FLAGS.vocab_file = "uncased_L-12_H-768_A-12/vocab.txt"
-    # FLAGS.output_dir = "tmp/cola"
-    # FLAGS.init_checkpoint = "uncased_L-12_H-768_A-12/bert_model.ckpt"
-    # FLAGS.do_train = True
-    # FLAGS.do_eval = True
-    # FLAGS.do_predict = True
+    FLAGS.task_name = "cola"
+    FLAGS.bert_config_file = "uncased_L-12_H-768_A-12/bert_config.json"
+    FLAGS.data_dir = "data/cola_public/format"
+    FLAGS.vocab_file = "uncased_L-12_H-768_A-12/vocab.txt"
+    FLAGS.output_dir = "tmp/cola"
+    FLAGS.init_checkpoint = "uncased_L-12_H-768_A-12/bert_model.ckpt"
+    FLAGS.do_train = True
+    FLAGS.do_eval = True
+    FLAGS.do_predict = True
 
     print_falgs(FLAGS)
-    # logger.info(FLAGS.is_parsed())
+    logger.info(FLAGS.is_parsed())
 
-    # logger.info("data dir: %s" % FLAGS.data_dir)
-    # logger.info("bert_config_file dir: %s" % FLAGS.bert_config_file)
-    # logger.info("task name: %s" % FLAGS.task_name)
+    logger.info("data dir: %s" % FLAGS.data_dir)
+    logger.info("bert_config_file dir: %s" % FLAGS.bert_config_file)
+    logger.info("task name: %s" % FLAGS.task_name)
 
     # 仅仅利用命令行运行上述的参数才会有效
     # main(None)  # 如果不在terminal中执行，默认参数没有用，上面也是

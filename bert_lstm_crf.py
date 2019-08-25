@@ -13,15 +13,15 @@ from __future__ import print_function
 import collections
 import os
 import numpy as np
-from mylogger import logger
+from bert_base.mylogger import logger
 import tensorflow as tf
 import codecs
 import pickle
-from tokenization import convert_to_unicode, printable_text, FullTokenizer
-from zhejiang.models import create_model
-from modeling import get_assignment_map_from_checkpoint, BertConfig
-from optimization import create_optimizer
-from zhejiang.conlleval import return_report
+from bert_base.tokenization import convert_to_unicode, FullTokenizer
+from models import create_model
+from bert_base.modeling import get_assignment_map_from_checkpoint, BertConfig
+from bert_base.optimization import create_optimizer
+from conlleval import return_report
 
 
 class InputExample(object):

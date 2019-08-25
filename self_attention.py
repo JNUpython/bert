@@ -6,8 +6,8 @@
 # @Software: PyCharm
 
 import tensorflow as tf
-from modeling import get_shape_list
-from mylogger import logger
+from bert_base.modeling import get_shape_list
+from bert_base.mylogger import logger
 
 """
 IBM 实验室的文章： 实现github地址

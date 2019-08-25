@@ -7,7 +7,7 @@
 
 import re
 from collections import Counter
-from mylogger import logger
+from bert_base.mylogger import logger
 import pandas as pd
 from copy import copy
 import collections
