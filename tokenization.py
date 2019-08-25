@@ -38,13 +38,15 @@ def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
         logger.info("初始化的checkpoint为 None")
         return
 
-    m = re.match("^.*?([A-Za-z0-9_-]+)/bert_model.ckpt", init_checkpoint)
-    if m is None:
-        logger.info("初始化的checkpoint无效：%s" % init_checkpoint)
-        return
+    logger.info(init_checkpoint)
+    # m = re.match("^.*?([A-Za-z0-9_-]+)/bert_model.ckpt", init_checkpoint)
+    # logger.info(m.group())
+    # if m is None:
+    #     logger.info("初始化的checkpoint无效：%s" % init_checkpoint)
+    #     return
 
-    model_name = m.group(1)
-
+    # model_name = m.group(1)
+    model_name = "chinese_L-12_H-768_A-12"
     lower_models = [
         "uncased_L-24_H-1024_A-16", "uncased_L-12_H-768_A-12",
         "multilingual_L-12_H-768_A-12", "chinese_L-12_H-768_A-12"
@@ -76,8 +78,7 @@ def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
             "However, `%s` seems to be a %s model, so you "
             "should pass in `--do_lower_case=%s` so that the fine-tuning matches "
             "how the model was pre-training. If this error is wrong, please "
-            "just comment out this check." % (actual_flag, init_checkpoint,
-                                              model_name, case_name, opposite_flag))
+            "just comment out this check." % (actual_flag, init_checkpoint, model_name, case_name, opposite_flag))
     logger.info("do_lower_case 与模型匹配")
 
 

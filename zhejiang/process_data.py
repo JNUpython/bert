@@ -63,6 +63,14 @@ def prepare_fine_tune_data():
 """
 
 
+def sentence_clean(sentence):
+    # 字母 数字
+    sentence = re.sub("[a-zA-Z]+", "@", sentence)
+    sentence = re.sub("\d+", "&", sentence)
+    sentence = re.sub("\s", "", sentence)
+    return sentence.strip()
+
+
 def data_for_squence(input_file, output_file=None):
     df_reviews = pd.read_csv(input_file, encoding="utf-8", delimiter=",", header=0)
     reviews = df_reviews["Reviews"].values
@@ -192,13 +200,6 @@ def data_for_squence2(input_file, output_file=None):
     """
     df_reviews = pd.read_csv(input_file, encoding="utf-8", delimiter=",", header=0)
     reviews = df_reviews["Reviews"].values
-
-    def sentence_clean(sentence):
-        # 字母 数字
-        sentence = re.sub("[a-zA-Z]+", "@", sentence)
-        sentence = re.sub("\d+", "&", sentence)
-        sentence = re.sub("\s", "", sentence)
-        return sentence.strip()
 
     # 句子清洗
     sentences = list(map(sentence_clean, reviews))
@@ -481,6 +482,51 @@ def parse_ner_predict(predicted_file, category_ids_file):
         df.to_excel("./data/data_ner/ner_res.xlsx", index=False)
 
 
+def data_for_sentimental():
+    # test: 将序列化标注的test数据解析作为模型的输入，利用到序列化标注的结果
+    columns = ["ID", "AspectTerms", "Opinions", "Polarities", "Categories", "Review"]
+    path = r"D:\projects_py\bert\zhejiang\data_ner\ner_res.xlsx"
+    df = pd.read_excel(path)
+    df = df[columns].fillna(value="_")
+    df.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\test.csv", index=False)
+    print(df[:3])
+
+    # train：将训练数据对应的label opinion提取并作为序列化标注的结果
+    df = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_labels.csv", encoding="utf-8"), header=0)
+    df = df[["id", "AspectTerms", "OpinionTerms", "Polarities", "Categories"]]
+    sentiment_ids = collections.OrderedDict()
+    for index, senti in enumerate(set(df["Polarities"].values)):
+        sentiment_ids[senti] = index
+    logger.info(sentiment_ids)
+    pd.Series(sentiment_ids).to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\sentiment_ids.csv")
+    df["Polarities"] = df["Polarities"].apply(lambda x: sentiment_ids[x.strip()])
+    df.columns = columns[:-1]
+    print(df[:3])
+    # 给训练数据添加review
+    df_review = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv", encoding="utf8"),
+                            header=0, index_col=["id"], dtype=str)
+    # print(df_review[:3])
+    f = lambda x: " ".join(list(sentence_clean(x)))
+    df_review["Reviews"] = df_review["Reviews"].apply(f).values
+    tmp = [df_review.loc[id]["Reviews"] for id in df["ID"].values]
+    # logger.info(tmp)
+    df["Review"] = tmp
+    print(df_review[:3])
+
+    indexes = list(range(len(df)))
+    random.shuffle(indexes)
+    df = df.iloc[indexes]
+    num_row = len(df)
+    split_index = int(num_row * 0.2)
+    df_dev = df[:split_index]
+    df_train = df[split_index:]
+    logger.info(len(df_dev))
+    logger.info(len(df_train))
+
+    df_train.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\train.csv", index=False)
+    df_dev.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\dev.csv", index=False)
+
+
 if __name__ == '__main__':
     file_labels = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_labels.csv"
     file_reviews = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv"
@@ -501,6 +547,7 @@ if __name__ == '__main__':
     # count_predcited_aspect_opinion()
     # count_category(file_labels)
     # data_for_squence2(file_reviews, file_labels)
-    file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
-    file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
-    parse_ner_predict(file_predict, file_category_ids)
+    # file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
+    # file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
+    # parse_ner_predict(file_predict, file_category_ids)
+    data_for_sentimental()
