@@ -13,6 +13,7 @@ from copy import copy
 import collections
 from tqdm import tqdm
 import random
+import numpy as np
 
 seed = 1233
 random.seed(seed)
@@ -527,6 +528,27 @@ def data_for_sentimental():
     df_dev.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\dev.csv", index=False)
 
 
+def get_sentiment_result():
+    df = pd.read_csv(open(r"D:\projects_py\bert\zhejiang\data_sentimental\sentiment_ids.csv"), header=None)
+    id_sentiment = {int(v): k for k, v in df.values}
+    print(id_sentiment)
+    df = pd.read_csv(open(r"D:\projects_py\bert\zhejiang\output_sentiment\test_results.tsv", encoding="utf-8"), sep='\t', header=None)
+    # print(df)
+    sentiment = [id_sentiment[np.argmax(three)] for three in df.values]
+    print(sentiment)
+    df = pd.read_csv(open(r"D:\projects_py\bert\zhejiang\data_sentimental\test.csv"), header=0)
+    df["Polarities"] = sentiment
+
+
+    df_test = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TEST\Test_reviews.csv", encoding="utf-8"), header=0)
+
+    df = pd.merge(left=df_test, right=df, left_on="id", right_on="ID", how="left")
+    df = df.fillna(value="_")
+    df.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\ner_sentiment_res.csv", index=False)
+    df = df[["id", "AspectTerms", "Opinions", "Categories", "Polarities"]]
+    df.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\Result.csv", encoding="utf-8", header=None, index=False)
+
+
 if __name__ == '__main__':
     file_labels = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_labels.csv"
     file_reviews = r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv"
@@ -550,4 +572,5 @@ if __name__ == '__main__':
     # file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
     # file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
     # parse_ner_predict(file_predict, file_category_ids)
-    data_for_sentimental()
+    # data_for_sentimental()
+    get_sentiment_result()
