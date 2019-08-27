@@ -705,7 +705,7 @@ def train(args):
                     if id == 0:
                         continue
                     curr_labels = id2label[id]
-                    if curr_labels in ['[CLS]', '[SEP]']:
+                    if curr_labels in ['[CLS]', '[SEP]','X']:
                         continue
                     try:
                         line += line_token[idx] + ' ' + label_token[idx] + ' ' + curr_labels + '\n'
