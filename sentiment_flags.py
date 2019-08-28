@@ -32,7 +32,8 @@ flags.DEFINE_string("output_dir",
 ## Other parameters
 
 flags.DEFINE_string("init_checkpoint",
-                    r"D:\projects_py\bert\chinese_L-12_H-768_A-12",
+                    # r"D:\projects_py\bert\chinese_L-12_H-768_A-12",
+                    r"D:\projects_py\bert\zhejiang\output_sentiment",
                     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool("do_lower_case",
@@ -45,11 +46,13 @@ flags.DEFINE_integer("max_seq_length",
                      "Sequences longer than this will be truncated, and sequences shorter "
                      "than this will be padded.")
 flags.DEFINE_bool("do_train",
-                  True,
+                  # True,
+                  False,
                   "Whether to run training.")
 
 flags.DEFINE_bool("do_eval",
-                  True,
+                  # True,
+                  False,
                   "Whether to run eval on the dev set.")
 
 flags.DEFINE_bool("do_predict",

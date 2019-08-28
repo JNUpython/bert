@@ -26,7 +26,7 @@ import re
 import numpy as np
 import six
 import tensorflow as tf
-from mylogger import logger
+from bert_base.mylogger import logger
 
 
 class BertConfig(object):
