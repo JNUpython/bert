@@ -23,36 +23,33 @@ def get_args_parser():
     #     root_path = '/home/macan/ml/workspace/BERT-BiLSTM-CRF-NER'
 
     # 第一组参数
-    group1 = parser.add_argument_group(
-        'File Paths', 'config the path, checkpoint and filename of a pretrained/fine-tuned BERT model'
-    )
-
+    group1 = parser.add_argument_group('File Paths',
+                                       'config the path, checkpoint and filename of a pretrained/fine-tuned BERT model')
     group1.add_argument('-data_dir', type=str,
-                        default=r"D:\projects_py\bert\zhejiang\data",
-                        help='train, dev and test data dir')
+                        default="./zhejiang/data_ner",
+                        help='train.csv, dev.csv and test.csv 数据文件存放路径')
 
     group1.add_argument('-bert_config_file', type=str,
                         default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12\bert_config.json")
 
     group1.add_argument('-output_dir', type=str,
-                        default=r"D:\projects_py\bert\zhejiang\output",
-                        help='directory of a pretrained BERT model')
+                        default=r"./zhejiang/output_ner",
+                        help='模型训练后保存路径')
 
     group1.add_argument('-init_checkpoint', type=str,
-                        # default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12",  # 初始bert模型
-                        default=r"D:\projects_py\bert\zhejiang\output",  # 训练后的模型
+                        default=r"./chinese_L-12_H-768_A-12",  # 初始bert模型
+                        # default=r"D:\projects_py\bert\zhejiang\output",  # 训练后的模型
                         help='Initial checkpoint (usually from a pre-trained BERT model).')
 
     group1.add_argument('-vocab_file', type=str,
-                        default=r"D:\projects_py\bert\chinese_L-12_H-768_A-12\vocab.txt")
+                        default=r"./chinese_L-12_H-768_A-12/vocab.txt")
 
     # 第二组关于模型的一些参数
     group2 = parser.add_argument_group('Model Config', 'config the model params')
-
     group2.add_argument('-max_seq_length', type=int,
                         default=128,
-                        # default=64,  # 这样做不知是否会有害
-                        help='The maximum total input sequence length after WordPiece tokenization.')
+                        # default=64,
+                        help='输入序列的允许最大长度，即句子 tokens 的长度')
 
     group2.add_argument('-do_train', action='store_false',
                         default=True,
@@ -69,7 +66,7 @@ def get_args_parser():
                         help='Whether to run the predict in inference mode on the test set.')
 
     group2.add_argument('-batch_size', type=int,
-                        # default=1,
+                        # default=1,  #  for test
                         default=32,
                         help='Total batch size for training, eval and predict.')
 
@@ -78,7 +75,7 @@ def get_args_parser():
                         help='The initial learning rate for Adam.')
 
     group2.add_argument('-num_train_epochs', type=float,
-                        default=60,
+                        default=100,
                         help='Total number of training epochs to perform.')
 
     group2.add_argument('-dropout_rate', type=float,
@@ -100,7 +97,7 @@ def get_args_parser():
                         help='size of lstm units.')
 
     group2.add_argument('-num_layers', type=int,
-                        default=1,
+                        default=0,
                         help='number of rnn layers, default is 1.')
 
     group2.add_argument('-cell', type=str,
@@ -108,24 +105,25 @@ def get_args_parser():
                         help='which rnn cell used.')
 
     group2.add_argument('-save_checkpoints_steps', type=int,
-                        default=50,
+                        default=500,
                         help='save_checkpoints_steps')
 
     group2.add_argument('-save_summary_steps', type=int,
-                        default=5,
+                        default=10,
                         help='save_summary_steps.')
 
     group2.add_argument('-filter_adam_var', type=bool,
                         default=False,
-                        help='after training do filter Adam params from model and save no Adam params model in file.')
+                        help='训练完之后是否删除adam的参数，不存储在model中')
 
     group2.add_argument('-do_lower_case', type=bool,
                         default=True,
                         help='Whether to lower case the input text.')
 
     group2.add_argument('-clean', type=bool,
-                        default=False)
-                        # default=True)
+                        default=False,
+                        # default=True，
+                        help="是否清除output路径下面文件， 继续训练模型请设置为False")
 
     group2.add_argument('-device_map', type=str,
                         # default='0',  # GPU
@@ -134,8 +132,8 @@ def get_args_parser():
 
     # add labels
     group2.add_argument('-label_list', type=str,
-                        # default=None,
-                        default=r"D:\projects_py\bert\zhejiang\output\label_list.pkl",
+                        default=None,
+                        # default=r"/output_ner/label_list.pkl",
                         help='User define labels， can be a file with one label one line or a string using \',\' split')
 
     parser.add_argument('-verbose', action='store_true',

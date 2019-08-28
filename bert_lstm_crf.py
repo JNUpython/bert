@@ -30,11 +30,9 @@ class InputExample(object):
     def __init__(self, guid=None, text=None, label=None):
         """Constructs a InputExample.
         Args:
-          guid: Unique id for the example.
-          text_a: string. The untokenized text of the first sequence. For single
-            sequence tasks, only this sequence must be specified.
-          label: (Optional) string. The label of the example. This should be
-            specified for train and dev examples, but not for test examples.
+          guid: ID.
+          text_a: 需要被标注的序列.
+          label: dev 和 train 数据对应的标注序列.
         """
         self.guid = guid
         self.text = text  # 以空格进行切分的输入词汇或者字符
@@ -67,15 +65,15 @@ class NerProcessor(DataProcessor):
         self.output_dir = output_dir
 
     def get_train_examples(self, data_dir):
-        logger.info("get_train_examples")
+        logger.info("get_train_examples...>>>...")
         return self._create_example(self._read_data(os.path.join(data_dir, "train.txt")), "train")
 
     def get_dev_examples(self, data_dir):
-        logger.info("get_dev_examples")
+        logger.info("get_dev_examples...>>>...")
         return self._create_example(self._read_data(os.path.join(data_dir, "dev.txt")), "dev")
 
     def get_test_examples(self, data_dir):
-        logger.info("get_test_examples")
+        logger.info("get_test_examples...>>>...")
         return self._create_example(self._read_data(os.path.join(data_dir, "test.txt"), data_type="test"), "test")
 
     def get_labels(self, labels=None):
@@ -103,7 +101,7 @@ class NerProcessor(DataProcessor):
         else:
             logger.info(self.labels)
             if len(self.labels) > 0:
-                # 为什么还需要添加X SEP？？？？？
+                # X: for word piece, 英文词的后缀
                 self.labels = self.labels.union({"X", "[CLS]", "[SEP]"})
                 with codecs.open(os.path.join(self.output_dir, 'label_list.pkl'), 'wb') as rf:
                     pickle.dump(self.labels, rf)
@@ -136,14 +134,15 @@ class NerProcessor(DataProcessor):
                 contends = line.strip()
                 tokens = contends.split('\t')
                 if len(contends) != 0:
-                    if (len(tokens) == 2) and (data_type != "test"):
-                        # train or dev
+                    if len(tokens) == 2:
+                        # train, dev, test 测试部分带验证
                         words.append(tokens[0])
                         labels.append(tokens[1])
                         self.labels.add(tokens[1])
                     elif (len(tokens) == 1) and (data_type == "test"):
+                        # 测试不带验证
                         words.append(tokens[0])
-                        labels.append("O")
+                        labels.append("O")  # 仅仅为了填充下
                     else:
                         logger.info(line)
                         logger.info(tokens)
@@ -203,7 +202,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
             pickle.dump(label_map, w)
 
     textlist = example.text.split(' ')
-    labellist = example.label.split(' ')
+    labellist = example.label.split(' ')  # 前面解析时候使用的空格
 
     tokens = []
     labels = []
@@ -214,12 +213,10 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         tokens.extend(token)
         label_1 = labellist[i]
         for m in range(len(token)):
+            # 对 wordpiece 词干后缀用 X 填充序列 反序列化时候解析需要用上
             if m == 0:
                 labels.append(label_1)
-
             else:
-                # 有些词汇会被Token提取成多个，后面尾缀部分用X进行标注
-                # 中文一般不会出现else
                 labels.append("X")
 
     # tokens = tokenizer.tokenize(example.text)
@@ -273,7 +270,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     # assert len(label_mask) == max_seq_length
 
     # 打印部分样本数据信息
-    if ex_index < 5:
+    if ex_index < 3:
         logger.info("*** Example ***")
         logger.info("guid: %s" % (example.guid))
         # logger.info("tokens: %s" % " ".join([printable_text(x) for x in tokens]))
@@ -321,7 +318,7 @@ def filed_based_convert_examples_to_features(
             f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
             return f
 
-        # 创建特征字典， 有序字典
+        # 创建特征字典， 有序字典， 写进record
         features = collections.OrderedDict()
         features["input_ids"] = create_int_feature(feature.input_ids)
         features["input_mask"] = create_int_feature(feature.input_mask)
@@ -335,6 +332,7 @@ def filed_based_convert_examples_to_features(
 
 
 def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remainder):
+    """返回是一个函数 而这个函数返回是一个tfrecord"""
     name_to_features = {
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
@@ -344,12 +342,13 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
         # "label_mask": tf.FixedLenFeature([seq_length], tf.int64),
     }
 
-    # tf序列元的record进行反序列化？
+    # tf序列元的record进行反序列化？也需要用到先前定义好的特征矩阵
     def _decode_record(record, name_to_features):
         example = tf.parse_single_example(record, name_to_features)
         for name in list(example.keys()):
             t = example[name]
             if t.dtype == tf.int64:
+                # 降低内存消耗
                 t = tf.to_int32(t)
             example[name] = t
         return example
@@ -360,13 +359,16 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
         d = tf.data.TFRecordDataset(input_file)
         if is_training:
             d = d.repeat()
-            d = d.shuffle(buffer_size=300)  # ？？？？
+            d = d.shuffle(buffer_size=300)  # 随机从300个样本里面采用获取batch
+
         d = d.apply(
-            tf.data.experimental.map_and_batch(
-                lambda record: _decode_record(record, name_to_features),
-                batch_size=batch_size,
-                num_parallel_calls=4,  # 并行处理数据的CPU核心数量，不要大于你机器的核心数
-                drop_remainder=drop_remainder)
+            # 这里可以添加增强处理函数
+            # ttf.parse_single_example 反序列tfrecord到指定的字典
+            tf.data.experimental.map_and_batch(lambda record: _decode_record(record, name_to_features),
+                                               batch_size=batch_size,
+                                               num_parallel_calls=4,  # 并行处理数据的CPU核心数量，不要大于你机器的核心数
+                                               drop_remainder=drop_remainder  # 表示是否应该丢弃最后一批，以防它的大小小于预期; 默认行为是不删除较小的批处理。
+                                               )
         )
         d = d.prefetch(buffer_size=4)  # ？？？？
         return d
@@ -389,6 +391,9 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
     """
 
     def model_fn(features, labels, mode, params):
+        """features: 字典
+        mode：代表 train dev test
+        输入固定的吗？必须这么定义模型的输入函数"""
         logger.info("*** Features ***")
         for name in sorted(features.keys()):
             logger.info("  name = %s, shape = %s" % (name, features[name].shape))
@@ -397,7 +402,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
         segment_ids = features["segment_ids"]
         label_ids = features["label_ids"]
 
-        print('shape of input_ids', input_ids.shape)
+        logger.info('shape of input_ids', input_ids.shape)
         # label_mask = features["label_mask"]
         is_training = (mode == tf.estimator.ModeKeys.TRAIN)
 
@@ -407,25 +412,25 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
             bert_config, is_training, input_ids, input_mask, segment_ids, label_ids,
             num_labels, False, args.dropout_rate, args.lstm_size, args.cell, args.num_layers)
 
-        tvars = tf.trainable_variables()
-
         # 加载BERT模型: 已经有训练的参数就加载，后面新加入的crf参数就没有？？？
+        tvars = tf.trainable_variables()  # 获取所有能训练的参数
         if init_checkpoint:
+            # 获取能加载的参数
             (assignment_map, initialized_variable_names) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
+            # 加载能加载的参数
             tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
 
-        # 打印变量名
-        # logger.info("**** Trainable Variables ****")
-        #
         # 打印加载模型的参数
-        # for var in tvars:
-        #     init_string = ""
-        #     if var.name in initialized_variable_names:
-        #         init_string = ", *INIT_FROM_CKPT*"
-        #     logger.info("  name = %s, shape = %s%s", var.name, var.shape, init_string)
+        logger.info("**** Trainable Variables ****")
+        for var in tvars:
+            init_string = ""
+            if var.name in initialized_variable_names:
+                # 这里代表能加载的参数，否则不是加载
+                init_string = ", *INIT_FROM_CKPT*"
+            logger.info("  name = %s, shape = %s%s", var.name, var.shape, init_string)
 
         if mode == tf.estimator.ModeKeys.TRAIN:
-            # train
+            # train 优化器定义
             # train_op = optimizer.optimizer(total_loss, learning_rate, num_train_steps)
             train_op = create_optimizer(total_loss, learning_rate, num_train_steps, num_warmup_steps, False)
             hook_dict = {}
@@ -461,7 +466,7 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
                 mode=mode,
                 predictions=pred_ids
             )
-        return output_spec
+        return output_spec  # 这个是什么？？？？
 
     return model_fn
 
@@ -549,6 +554,7 @@ def train(args):
     processor = processors[args.ner](args.output_dir)
     logger.info(args.data_dir)
 
+    # 加载字典
     tokenizer = FullTokenizer(vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
 
     session_config = tf.ConfigProto(
@@ -559,7 +565,7 @@ def train(args):
 
     run_config = tf.estimator.RunConfig(
         model_dir=args.output_dir,
-        save_summary_steps=500,
+        save_summary_steps=500,  # 这里写死了 前面定义无用
         save_checkpoints_steps=500,
         session_config=session_config
     )
@@ -583,6 +589,7 @@ def train(args):
         logger.info("  Batch size = %d", args.batch_size)
         logger.info("  Num steps = %d", num_train_steps)
 
+        # 加载测试数据
         eval_examples = processor.get_dev_examples(args.data_dir)
 
         # 打印验证集数据信息
@@ -608,7 +615,7 @@ def train(args):
         'batch_size': args.batch_size
     }
 
-    # 不同场景的dropout设置
+    # 不同场景的dropout设置？？？？， 如何实现
     estimator = tf.estimator.Estimator(
         model_fn,
         params=params,
@@ -621,7 +628,7 @@ def train(args):
         if not os.path.exists(train_file):
             filed_based_convert_examples_to_features(train_examples, label_list, args.max_seq_length, tokenizer,
                                                      train_file, args.output_dir)
-        # 2.读取record 数据，组成batch
+        # 2.读取record 训练数据，组成batch
         train_input_fn = file_based_input_fn_builder(
             input_file=train_file,
             seq_length=args.max_seq_length,
@@ -629,6 +636,7 @@ def train(args):
             drop_remainder=True)
         # estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
 
+        # eval的record
         eval_file = os.path.join(args.output_dir, "eval.tf_record")
         if not os.path.exists(eval_file):
             filed_based_convert_examples_to_features(eval_examples, label_list, args.max_seq_length, tokenizer,
@@ -643,8 +651,8 @@ def train(args):
         # early stop hook
         early_stopping_hook = tf.contrib.estimator.stop_if_no_decrease_hook(
             estimator=estimator,
-            metric_name='loss',
-            max_steps_without_decrease=num_train_steps,
+            metric_name='loss', # loss没有提升的时候提前结束, 为啥不合适dev loss？？？
+            max_steps_without_decrease=num_train_steps,  # 这里设置了最大值？？？？？
             eval_dir=None,
             min_steps=0,
             run_every_secs=None,
@@ -705,7 +713,7 @@ def train(args):
                     if id == 0:
                         continue
                     curr_labels = id2label[id]
-                    if curr_labels in ['[CLS]', '[SEP]','X']:
+                    if curr_labels in ['[CLS]', '[SEP]', 'X']:
                         continue
                     try:
                         line += line_token[idx] + ' ' + label_token[idx] + ' ' + curr_labels + '\n'

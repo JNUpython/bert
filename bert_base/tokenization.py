@@ -23,7 +23,7 @@ import re
 import unicodedata
 import six
 import tensorflow as tf
-from mylogger import logger
+from bert_base.mylogger import logger
 
 
 def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
