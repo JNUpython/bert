@@ -533,7 +533,7 @@ def data_for_sentimental():
 def get_sentiment_result():
     import os
     path_data_sentimental = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_sentimental"
-    df = pd.read_csv(open(os.path.join(path_data_sentimental, "sentiment_ids.csv"), encoding="GBK"), header=None)
+    df = pd.read_csv(open(os.path.join(path_data_sentimental, "sentiment_ids.csv"), encoding="utf-8"), header=None)
     id_sentiment = {int(v): k for k, v in df.values}
     print(id_sentiment)
     df = pd.read_csv(open(os.path.join(path_data_sentimental, "test_results.tsv"), encoding="utf-8"), sep='\t',
@@ -541,7 +541,7 @@ def get_sentiment_result():
     # print(df)
     sentiment = [id_sentiment[np.argmax(three)] for three in df.values]
     print(sentiment)
-    df = pd.read_csv(open(os.path.join(path_data_sentimental, "test.csv"), encoding="GBK"), header=0)
+    df = pd.read_csv(open(os.path.join(path_data_sentimental, "test.csv"), encoding="utf-8"), header=0)
     df["Polarities"] = sentiment
 
     df_test = pd.read_csv(open(os.path.join(path_data_sentimental, "Test_reviews.csv"), encoding="utf-8"), header=0)
@@ -627,11 +627,11 @@ if __name__ == '__main__':
     # if len(sys.argv)>1:
     #     file_predict = ""
     # else:
-    file_predict = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/label_test.txt"
-    file_category_ids = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/category_ids.csv"
-    parse_ner_predict(file_predict, file_category_ids)
-    data_for_sentimental()
-    # get_sentiment_result()
+    # file_predict = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/label_test.txt"
+    # file_category_ids = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/category_ids.csv"
+    # parse_ner_predict(file_predict, file_category_ids)
+    # data_for_sentimental()
+    get_sentiment_result()
 
     #  数据增强
     # data_enforce(file_labels, file_reviews) # 关闭seed
