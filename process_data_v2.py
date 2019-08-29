@@ -17,7 +17,7 @@ import numpy as np
 
 seed = 1233
 # random.seed(seed)
-import synonyms
+# import synonyms
 
 """
 经过统计发现，训练数据和bert的原有词典差异性不大，可以不用改变自定义的词典大小
@@ -389,7 +389,8 @@ def count_predcited_aspect_opinion():
 
 def parse_ner_predict(predicted_file, category_ids_file):
     category_ids = {}
-    for k, v in pd.read_csv(open(category_ids_file), header=None).values:
+    for k, v in pd.read_csv(open(category_ids_file,encoding="GBK"), header=None).values:
+
         category_ids[v] = k
     logger.info(category_ids)
     assert (len(category_ids) != 0)
@@ -494,7 +495,7 @@ def data_for_sentimental():
     print(df[:3])
 
     # train：将训练数据对应的label opinion提取并作为序列化标注的结果
-    df = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_labels.csv", encoding="utf-8"), header=0)
+    df = pd.read_csv(open("zhejiang/data_sentimental/Train_labels.csv", encoding="utf-8"), header=0)
     df = df[["id", "AspectTerms", "OpinionTerms", "Polarities", "Categories"]]
     sentiment_ids = collections.OrderedDict()
     for index, senti in enumerate(set(df["Polarities"].values)):
@@ -505,7 +506,7 @@ def data_for_sentimental():
     df.columns = columns[:-1]
     print(df[:3])
     # 给训练数据添加review
-    df_review = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv", encoding="utf8"),
+    df_review = pd.read_csv(open("zhejiang/data_sentimental/Train_reviews.csv", encoding="utf8"),
                             header=0, index_col=["id"], dtype=str)
     # print(df_review[:3])
     f = lambda x: " ".join(list(sentence_clean(x)))
@@ -603,9 +604,9 @@ def data_enforce(label_file, review_file):
 
 
 if __name__ == '__main__':
-    file_labels = r"data\zhejiang\th1\TRAIN\Train_labels.csv"
-    file_reviews = r"data\zhejiang\th1\TRAIN\Train_reviews.csv"
-    file_reviews_ = r"data\zhejiang\th1\TEST\Test_reviews.csv"
+    # file_labels = r"data\zhejiang\th1\TRAIN\Train_labels.csv"
+    # file_reviews = r"data\zhejiang\th1\TRAIN\Train_reviews.csv"
+    # file_reviews_ = r"data\zhejiang\th1\TEST\Test_reviews.csv"
     # train_count = count_train_data(file)
     # logger.info(train_count)
     # dict_words = open(r"D:\projects_py\bert\chinese_L-12_H-768_A-12\vocab.txt", encoding="utf-8").readlines()
@@ -622,16 +623,20 @@ if __name__ == '__main__':
     # count_predcited_aspect_opinion()
     # count_category(file_labels)
     # data_for_squence2(file_reviews, file_labels)
-    file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
-    file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
-    # parse_ner_predict(file_predict, file_category_ids)
-    # data_for_sentimental()
+    # import sys
+    # if len(sys.argv)>1:
+    #     file_predict = ""
+    # else:
+    file_predict = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/label_test.txt"
+    file_category_ids = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/category_ids.csv"
+    parse_ner_predict(file_predict, file_category_ids)
+    data_for_sentimental()
     # get_sentiment_result()
 
     #  数据增强
     # data_enforce(file_labels, file_reviews) # 关闭seed
-    file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
-    file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
-    file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
-    data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
-    data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
+    # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
+    # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
+    # data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    # data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
