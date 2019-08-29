@@ -75,7 +75,7 @@ def get_args_parser():
                         help='The initial learning rate for Adam.')
 
     group2.add_argument('-num_train_epochs', type=float,
-                        default=100,
+                        default=10,
                         help='Total number of training epochs to perform.')
 
     group2.add_argument('-dropout_rate', type=float,

@@ -17,7 +17,7 @@ import numpy as np
 
 seed = 1233
 # random.seed(seed)
-# import synonyms
+import synonyms
 
 """
 经过统计发现，训练数据和bert的原有词典差异性不大，可以不用改变自定义的词典大小
