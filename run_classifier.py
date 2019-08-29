@@ -113,7 +113,7 @@ class ZhejiangProcesser(DataProcessor):
     def _read_tsv(cls, input_file, quotechar=None):
         """Reads a tab separated value file."""
         logger.info("_read_tsv file: %s" % input_file)
-        reader = csv.reader(open(input_file, encoding="GBK", mode="r"), delimiter=",", quotechar=quotechar)
+        reader = csv.reader(open(input_file, encoding="utf-8", mode="r"), delimiter=",", quotechar=quotechar)
         lines = []
         for line in reader:
             # logger.info(line)

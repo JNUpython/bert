@@ -482,7 +482,7 @@ def parse_ner_predict(predicted_file, category_ids_file):
             # break
         df = pd.DataFrame(data=res,
                           columns=["ID", "Review", "AspectTerms", "Opinions", "Polarities", "Categories", "Ner"])
-        df.to_excel("./zhejiang/data_ner/ner_res.xlsx", index=False)
+        df.to_excel("./zhejiang/data_ner/ner_res.xlsx",index=False)
 
 
 def data_for_sentimental():
@@ -491,7 +491,7 @@ def data_for_sentimental():
     path = "zhejiang/data_ner/ner_res.xlsx"
     df = pd.read_excel(path)
     df = df[columns].fillna(value="_")
-    df.to_csv("./zhejiang/data_sentimental/test.csv", index=False)
+    df.to_csv("./zhejiang/data_sentimental/test.csv",index=False)
     print(df[:3])
 
     # train：将训练数据对应的label opinion提取并作为序列化标注的结果
@@ -526,8 +526,8 @@ def data_for_sentimental():
     logger.info(len(df_dev))
     logger.info(len(df_train))
 
-    df_train.to_csv("zhejiang/data_sentimental/train.csv", index=False)
-    df_dev.to_csv("zhejiang/data_sentimental/dev.csv", index=False)
+    df_train.to_csv("zhejiang/data_sentimental/train.csv", encoding="utf-8",index=False)
+    df_dev.to_csv("zhejiang/data_sentimental/dev.csv", encoding="utf-8",index=False)
 
 
 def get_sentiment_result():
