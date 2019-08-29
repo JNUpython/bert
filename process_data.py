@@ -388,7 +388,7 @@ def count_predcited_aspect_opinion():
 
 def parse_ner_predict(predicted_file, category_ids_file):
     category_ids = {}
-    for k, v in pd.read_csv(open(category_ids_file)).values:
+    for k, v in pd.read_csv(open(category_ids_file), header=None).values:
         category_ids[v] = k
     logger.info(category_ids)
     assert (len(category_ids) != 0)
@@ -480,16 +480,16 @@ def parse_ner_predict(predicted_file, category_ids_file):
             # break
         df = pd.DataFrame(data=res,
                           columns=["ID", "Review", "AspectTerms", "Opinions", "Polarities", "Categories", "Ner"])
-        df.to_excel("./data/data_ner/ner_res.xlsx", index=False)
+        df.to_excel("./zhejiang/data_ner/ner_res.xlsx", index=False)
 
 
 def data_for_sentimental():
     # test: 将序列化标注的test数据解析作为模型的输入，利用到序列化标注的结果
     columns = ["ID", "AspectTerms", "Opinions", "Polarities", "Categories", "Review"]
-    path = r"D:\projects_py\bert\zhejiang\data_ner\ner_res.xlsx"
+    path = "zhejiang/data_ner/ner_res.xlsx"
     df = pd.read_excel(path)
     df = df[columns].fillna(value="_")
-    df.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\test.csv", index=False)
+    df.to_csv("./zhejiang/data_sentimental/test.csv", index=False)
     print(df[:3])
 
     # train：将训练数据对应的label opinion提取并作为序列化标注的结果
@@ -499,7 +499,7 @@ def data_for_sentimental():
     for index, senti in enumerate(set(df["Polarities"].values)):
         sentiment_ids[senti] = index
     logger.info(sentiment_ids)
-    pd.Series(sentiment_ids).to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\sentiment_ids.csv")
+    pd.Series(sentiment_ids).to_csv("zhejiang/data_sentimental/sentiment_ids.csv")
     df["Polarities"] = df["Polarities"].apply(lambda x: sentiment_ids[x.strip()])
     df.columns = columns[:-1]
     print(df[:3])
@@ -524,19 +524,19 @@ def data_for_sentimental():
     logger.info(len(df_dev))
     logger.info(len(df_train))
 
-    df_train.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\train.csv", index=False)
-    df_dev.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\dev.csv", index=False)
+    df_train.to_csv("zhejiang/data_sentimental/train.csv", index=False)
+    df_dev.to_csv("zhejiang/data_sentimental/dev.csv", index=False)
 
 
 def get_sentiment_result():
-    df = pd.read_csv(open(r"D:\projects_py\bert\zhejiang\data_sentimental\sentiment_ids.csv"), header=None)
+    df = pd.read_csv(open("zhejiang/data_sentimental_old071/sentiment_ids.csv"), header=None)
     id_sentiment = {int(v): k for k, v in df.values}
     print(id_sentiment)
-    df = pd.read_csv(open(r"D:\projects_py\bert\zhejiang\output_sentiment\test_results.tsv", encoding="utf-8"), sep='\t', header=None)
+    df = pd.read_csv(open("zhejiang/data_sentimental_old071/test_results.tsv", encoding="utf-8"), sep='\t', header=None)
     # print(df)
     sentiment = [id_sentiment[np.argmax(three)] for three in df.values]
     print(sentiment)
-    df = pd.read_csv(open(r"D:\projects_py\bert\zhejiang\data_sentimental\test.csv"), header=0)
+    df = pd.read_csv(open("zhejiang/data_sentimental_old071/test.csv"), header=0)
     df["Polarities"] = sentiment
 
 
@@ -544,9 +544,9 @@ def get_sentiment_result():
 
     df = pd.merge(left=df_test, right=df, left_on="id", right_on="ID", how="left")
     df = df.fillna(value="_")
-    df.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\ner_sentiment_res.csv", index=False)
+    df.to_csv("zhejiang/data_sentimental_old071/纠正category错误/ner_sentiment_res.csv", index=False)
     df = df[["id", "AspectTerms", "Opinions", "Categories", "Polarities"]]
-    df.to_csv(r"D:\projects_py\bert\zhejiang\data_sentimental\Result.csv", encoding="utf-8", header=None, index=False)
+    df.to_csv("zhejiang/data_sentimental_old071/纠正category错误/Result.csv", encoding="utf-8", header=None, index=False)
 
 
 if __name__ == '__main__':
@@ -569,8 +569,8 @@ if __name__ == '__main__':
     # count_predcited_aspect_opinion()
     # count_category(file_labels)
     # data_for_squence2(file_reviews, file_labels)
-    # file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
-    # file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
+    file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
+    file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
     # parse_ner_predict(file_predict, file_category_ids)
-    # data_for_sentimental()
-    get_sentiment_result()
+    data_for_sentimental()
+    # get_sentiment_result()
