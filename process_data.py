@@ -290,7 +290,7 @@ def data_for_squence2(input_file, output_file=None, data_dir = "zhejiang/data_ne
 
         num_doc = len(text)
         split_index = int(num_doc * 0.2)
-
+        split_index = 0
         text_dev = text[:split_index]
         text_train = text[split_index:]
 
@@ -521,6 +521,7 @@ def data_for_sentimental():
     df = df.iloc[indexes]
     num_row = len(df)
     split_index = int(num_row * 0.2)
+    split_index = 0
     df_dev = df[:split_index]
     df_train = df[split_index:]
     logger.info(len(df_dev))
@@ -695,8 +696,8 @@ if __name__ == '__main__':
     file_labels = "zhejiang/data_sentimental/Train_labels.csv"
     file_reviews = "zhejiang/data_sentimental/Train_reviews.csv"
     data_enforce_v2(file_labels, file_reviews)
-    # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
-    # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
-    # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
-    # data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
-    # data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
+    file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
+    file_reviews_ = "zhejiang/data_sentimental/Test_reviews.csv"
+    data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
