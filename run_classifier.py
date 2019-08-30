@@ -725,6 +725,8 @@ def main(_):
         predict_batch_size=FLAGS.predict_batch_size
     )
 
+    logger.info("是否加载训练数据：")
+    logger.info(FLAGS.do_train)
     if FLAGS.do_train:
         train_file = os.path.join(FLAGS.output_dir, "train.tf_record")
         file_based_convert_examples_to_features(train_examples, label_list, FLAGS.max_seq_length, tokenizer, train_file)
@@ -740,6 +742,9 @@ def main(_):
         )
         estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
 
+
+    logger.info("是否加载DEV数据：")
+    logger.info(FLAGS.do_eval)
     if FLAGS.do_eval:
         eval_examples = processor.get_dev_examples(FLAGS.data_dir)
         num_actual_eval_examples = len(eval_examples)
@@ -786,6 +791,8 @@ def main(_):
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
 
+    logger.info("是否加载TEST数据：")
+    logger.info(FLAGS.do_eval)
     if FLAGS.do_predict:
         predict_examples = processor.get_test_examples(FLAGS.data_dir)
         num_actual_predict_examples = len(predict_examples)
