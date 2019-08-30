@@ -5,7 +5,7 @@ unzip chinese_L-12_H-768_A-12.zip
 nvidia-docker run -it -v /data/haoran:/data/haoran 8e978d76921e /bin/bash
 
 cd bert
-python3 run.py -num_train_epochs 20 -batch_size 32 -save_checkpoints_steps 1000 -save_summary_steps 1000 -do_eval False -data_dir /data/haoran/aspect_based_sentiment/lc_branch/bert/zhejiang/data_ner_enforce -output_dir output -init_checkpoint /data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/bert_model.ckpt -bert_config_file /data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/bert_config.json -vocab_file /data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/vocab.txt -device_map 1
+python3 run.py -num_train_epochs 20 -batch_size 32 -save_checkpoints_steps 1000 -save_summary_steps 1000 -data_dir /data/haoran/aspect_based_sentiment/lc_branch/bert/zhejiang/data_ner_enforce -output_dir output -init_checkpoint /data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/bert_model.ckpt -bert_config_file /data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/bert_config.json -vocab_file /data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/vocab.txt -device_map 1
 scp haoran@10.1.129.12:/data/haoran/aspect_based_sentiment/lc_branch/bert/output/label_test.txt ./
 
 
