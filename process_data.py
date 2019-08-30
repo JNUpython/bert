@@ -65,7 +65,7 @@ def sentence_clean(sentence):
     # 字母 数字
     # sentence = re.sub("[a-zA-Z]+", "@", sentence)
     # sentence = re.sub("\d+", "&", sentence)
-    # sentence = re.sub("\s", "", sentence)
+    sentence = re.sub("\s+", "，", sentence)
     return sentence.strip()
 
 
@@ -391,7 +391,7 @@ def count_predcited_aspect_opinion():
         logger.info(Counter(ots))
 
 
-def parse_ner_predict(predicted_file, category_ids_file):
+def parse_ner_predict(predicted_file, category_ids_file, data_dir):
     category_ids = {}
     for k, v in pd.read_csv(open(category_ids_file), header=None).values:
         category_ids[v] = k
@@ -420,6 +420,7 @@ def parse_ner_predict(predicted_file, category_ids_file):
         for id, item in enumerate(items, 1):
             # 分析每个句子
             review = " ".join([line[0] for line in item.split("\n")])
+            logger.info(id)
             logger.info(review)
             ner_tokens_fake = [v.strip() for v in patt.split(item.strip()) if v.strip()]  # 这里还没有将标注的分开出来
             # logger.info(ner_tokens_fake)
@@ -483,9 +484,8 @@ def parse_ner_predict(predicted_file, category_ids_file):
                     ner_tokens_res.append(row)
             res.extend(ner_tokens_res)
             # break
-        df = pd.DataFrame(data=res,
-                          columns=["ID", "Review", "AspectTerms", "Opinions", "Polarities", "Categories", "Ner"])
-        df.to_excel("./zhejiang/data_ner/ner_res.xlsx", index=False)
+        df = pd.DataFrame(data=res, columns=["ID", "Review", "AspectTerms", "Opinions", "Polarities", "Categories", "Ner"])
+        df[["ID", "AspectTerms", "Opinions", "Polarities", "Categories"]].to_csv(data_dir + "/ner_res.csv", index=False)
 
 
 def data_for_sentimental():
@@ -841,9 +841,12 @@ if __name__ == '__main__':
 
     #  数据增强
     # data_enforce_(file_labels, file_reviews)  # 关闭seed
-    file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
-    file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
-    file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
+    # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
+    # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
+    # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
     m1 = data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
-    m2 = data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
-    print(m1, m2)
+    # m2 = data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    # print(m1, m2)
+    # parse_ner_predict("zhejiang/data_ner_enforce/label_test.txt",
+    #                   "zhejiang/data_ner_enforce/category_ids.csv",
+    #                   "zhejiang/data_ner_enforce")
