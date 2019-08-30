@@ -52,12 +52,12 @@ def get_args_parser():
                         help='输入序列的允许最大长度，即句子 tokens 的长度')
 
     group2.add_argument('-do_train', action='store_false',
-                        default=True,
+                        default=False,
                         # default=False,
                         help='Whether to run training.')
 
     group2.add_argument('-do_eval', action='store_false',
-                        default=True,
+                        default=False,
                         # default=False,
                         help='Whether to run eval on the dev set.')
 
