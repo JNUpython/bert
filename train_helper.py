@@ -57,7 +57,7 @@ def get_args_parser():
                         help='Whether to run training.')
 
     group2.add_argument('-do_eval', action='store_false',
-                        default=True,
+                        default=False,
                         # default=False,
                         help='Whether to run eval on the dev set.')
 
