@@ -188,7 +188,7 @@ def count_category(output_file, data_dir):
     for v, k in enumerate(set(cates)):
         cates_ids[k] = v
     logger.info(cates)
-    pd.Series(cates_ids).to_csv(data_dir + "/category_ids.csv")
+    pd.Series(cates_ids).to_csv(data_dir + "/category_ids.csv",encoding="GBK")
     logger.info(cates_ids)
     return cates_ids
 
@@ -602,6 +602,60 @@ def data_enforce(label_file, review_file):
     pd.DataFrame(data=res_1, columns=columns_1).to_csv("zhejiang/enforce_data/train_labels_enforce.csv", index=False, encoding="utf-8")
     pd.DataFrame(data=res_2, columns=columns_2).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv", index=False, encoding="utf-8")
 
+def data_enforce_v2(label_file, review_file):
+    """数据增强: 为所有数据增强"""
+    columns_1 = "id,AspectTerms,A_start,A_end,OpinionTerms,O_start,O_end,Categories,Polarities".split(",")
+    columns_2 = "id,Reviews".split(",")
+    df_labels = pd.read_csv(open(label_file, encoding="utf-8"), header=0)[columns_1]
+    df_reviews = pd.read_csv(open(review_file, encoding="utf-8"), header=0)[columns_2]
+    df_reviews.index = df_reviews["id"].values
+    print(df_labels[:3])
+    print(df_reviews[:3])
+    res_1 = []
+    res_2 = []
+    action_list = [None,None,
+                   {"aspect": True, "opinion": True, "nearby_index": 1},
+                   {"aspect": True, "opinion": False, "nearby_index": 1},
+                   {"aspect": False, "opinion": True, "nearby_index": 1},
+                   {"aspect": True, "opinion": True, "nearby_index": 2},
+                   {"aspect": True, "opinion": False, "nearby_index": 2},
+                   {"aspect": False, "opinion": True, "nearby_index": 2},
+                   {"aspect": True, "opinion": True, "nearby_index": 3},
+                   {"aspect": True, "opinion": False, "nearby_index": 3},
+                   {"aspect": False, "opinion": True, "nearby_index": 3}
+                   ]
+    for action in action_list:
+        print(action)
+        for row1 in df_labels.values:
+            row2 = df_reviews.loc[row1[0]].values
+            # print(row2)
+            # print(row1)
+            row_label = row1
+            row_review = row2
+            if row_label[1] != "_":
+                # AspectTerms 随机替换
+                aspect = row_label[1]
+                aspect_syn = synonyms.nearby(aspect)[0]
+                if action and action["nearby_index"] < len(aspect_syn) and action["aspect"] == True:
+                    aspect_replace = aspect_syn[action["nearby_index"]]
+                    row_label[1] = aspect_replace
+                    row_review[1] = row_review[1].replace(aspect, aspect_replace)
+                    # row_label[0] = "%s@" % row_label[0]  # 只为了测试观测开启，id后面对用还有用
+
+            if row_label[4] != "_":
+                # 情感 随机替换
+                opinion = row_label[4]
+                opinion_syn = synonyms.nearby(opinion)[0]
+                if action and action["nearby_index"] < len(opinion_syn) and action["opinion"] == True:
+                    opinion_replace = opinion_syn[action["nearby_index"]]
+                    row_label[4] = opinion_replace
+                    row_review[1] = row_review[1].replace(opinion, opinion_replace)
+                    # row_label[0] = "%s@" % row_label[0]
+
+            res_1.append(row_label)
+            res_2.append(row_review)
+    pd.DataFrame(data=res_1, columns=columns_1).to_csv("zhejiang/enforce_data/train_labels_enforce.csv", index=False, encoding="utf-8")
+    pd.DataFrame(data=res_2, columns=columns_2).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv", index=False, encoding="utf-8")
 
 if __name__ == '__main__':
     # file_labels = r"data\zhejiang\th1\TRAIN\Train_labels.csv"
@@ -628,13 +682,16 @@ if __name__ == '__main__':
     #     file_predict = ""
     # else:
     # file_predict = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/label_test.txt"
-    # file_category_ids = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/category_ids.csv"
+    # file_category_ids = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner_enforce/category_ids.csv"
+    # parse_ner_predict(file_predict, file_category_ids)
     # parse_ner_predict(file_predict, file_category_ids)
     # data_for_sentimental()
-    get_sentiment_result()
+    # get_sentiment_result()
 
     #  数据增强
-    # data_enforce(file_labels, file_reviews) # 关闭seed
+    file_labels = "zhejiang/data_sentimental/Train_labels.csv"
+    file_reviews = "zhejiang/data_sentimental/Train_reviews.csv"
+    data_enforce_v2(file_labels, file_reviews) # 关闭seed
     # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
     # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
     # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
