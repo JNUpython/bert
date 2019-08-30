@@ -63,9 +63,9 @@ def sentence_clean(sentence):
     将任务作为一个序列化标注的问题，将数据整理为序列标注BIO
     """
     # 字母 数字
-    sentence = re.sub("[a-zA-Z]+", "@", sentence)
-    sentence = re.sub("\d+", "&", sentence)
-    sentence = re.sub("\s", "", sentence)
+    # sentence = re.sub("[a-zA-Z]+", "@", sentence)
+    # sentence = re.sub("\d+", "&", sentence)
+    # sentence = re.sub("\s", "", sentence)
     return sentence.strip()
 
 
@@ -174,7 +174,7 @@ def count_category(output_file, data_dir):
     len(cates)
     logger.info(Counter(cates))
     cates_ids = collections.OrderedDict()
-    for v, k in enumerate(set(cates)):
+    for v, k in enumerate(sorted(list(set(cates)))):
         cates_ids[k] = v
     logger.info(cates)
     pd.Series(cates_ids).to_csv(data_dir + "/category_ids.csv")
@@ -189,6 +189,7 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
     :param output_file:
     :return:
     """
+    max_len = 0
     df_reviews = pd.read_csv(input_file, encoding="utf-8", delimiter=",", header=0)
     reviews = df_reviews["Reviews"].values
 
@@ -202,6 +203,8 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
         sentences = list(map(list, sentences))
         f = lambda list_words: "\n".join(list_words)
         sentences = list(map(f, sentences))
+        max_len = max([len(v) for v in sentences])
+
         with open(data_dir + "/test.txt", mode="w", encoding="utf-8") as file:
             file.write("\n\n".join(sentences))
             file.close()
@@ -215,12 +218,14 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
         text = ""
         cols_name = "AspectTerms,A_start,OpinionTerms,O_start,Categories".split(",")
         for col_id, col_review in tqdm(df_reviews[["id", "Reviews"]].values):
-            # logger.info(col_id)
-            # logger.info(col_review)
+            logger.info(col_id)
+            logger.info(col_review)
             col_id_df = df_labels.loc[df_labels.id == col_id]
-            # print(col_id_df)
+            logger.info(col_id_df)
 
             col_review = list(col_review)
+            if len(col_review) > max_len:
+                max_len = len(col_review)
             col_review_label = " ".join(col_review)  # 用空格进行分开
             # print(cols_name)
             for AspectTerms, A_start, OpinionTerms, O_start, Categories in col_id_df[cols_name].values:
@@ -258,24 +263,30 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
             # logger.info(col_review_label)
 
             try:
-                assert (len(col_review_label) == len(col_review))
+                # assert (len(col_review_label) == len(col_review))
                 # 其他地方已经进行过处理
                 # col_review = ["[CLS]"] + col_review
                 # col_review_label = ["C"] + col_review_label
+                tmp = []
                 for k, v in zip(col_review, col_review_label):
                     v = v if v != k else "O"
+                    tmp.append(v)
                     # print(k, v)
                     text += k + "\t" + v + "\n"
                 text += "\n"
+
+                if sum([v == "O" for v in tmp]) == len(tmp):
+                    raise Exception
 
             except:
                 logger.info(col_review)
                 logger.info(col_review_label)
                 # continue
+                logger.info("数据存在问题")
                 break
 
         text = text.strip().split("\n\n")
-        random.shuffle(text)
+        # random.shuffle(text)
 
         num_doc = len(text)
         split_index = int(num_doc * 0.2)
@@ -293,6 +304,7 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
         with open(data_dir + "/train.txt", mode="w", encoding="utf-8") as file:
             file.write("\n\n".join(text_train))
             file.close()
+    return max_len
 
 
 def count_predcited_aspect_opinion():
@@ -493,6 +505,7 @@ def data_for_sentimental():
     df["Polarities"] = df["Polarities"].apply(lambda x: sentiment_ids[x.strip()])
     df.columns = columns[:-1]
     print(df[:3])
+
     # 给训练数据添加review
     df_review = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv", encoding="utf8"),
                             header=0, index_col=["id"], dtype=str)
@@ -676,16 +689,17 @@ def data_enforce_(label_file, review_file):
     res_1 = []
     res_2 = []
     count = 0
-    # for _ in range(50):
-    for _ in range(3):  # test
+    for _ in range(3):
+    # for _ in range(3):  # test
         print(_)
         for row_re in df_reviews.values:
             count += 1
+            # logger.info(count)
             is_fake = False
             change_type = ""
 
             # 随机选择一个label行进行更改
-            rows_la = df_labels[df_labels.id == row_re[0]].values
+            rows_la = df_labels[df_labels.id == row_re[0]].values.copy()
             one_index = random.randint(0, len(rows_la) - 1)
             # print(rows_la)
             row_la = rows_la[one_index]
@@ -776,12 +790,15 @@ def data_enforce_(label_file, review_file):
 
             # 序列编号id
             rows_la[one_index] = np.array(row_label)
-            for v in rows_la:
-                v[0] = count
+            for v in range(len(rows_la)):
+                rows_la[v][0] = count
             row_review[0] = count
+            # logger.info(rows_la)
 
-            res_1.append(row_label)
+            res_1.extend(rows_la)
             res_2.append(row_review + [is_fake, change_type, row_re[-1]])
+
+
     pd.DataFrame(data=res_1, columns=columns_1).to_csv("zhejiang/enforce_data/train_labels_enforce.csv",
                                                        index=False,
                                                        encoding="utf-8")
@@ -818,9 +835,10 @@ if __name__ == '__main__':
     # get_sentiment_result()
 
     #  数据增强
-    data_enforce_(file_labels, file_reviews)  # 关闭seed
-    # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
-    # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
-    # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
-    # data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
-    # data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    # data_enforce_(file_labels, file_reviews)  # 关闭seed
+    file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
+    file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
+    file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
+    m1 = data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    m2 = data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    print(m1, m2)
