@@ -218,10 +218,10 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
         text = ""
         cols_name = "AspectTerms,A_start,OpinionTerms,O_start,Categories".split(",")
         for col_id, col_review in tqdm(df_reviews[["id", "Reviews"]].values):
-            logger.info(col_id)
-            logger.info(col_review)
+            # logger.info(col_id)
+            # logger.info(col_review)
             col_id_df = df_labels.loc[df_labels.id == col_id]
-            logger.info(col_id_df)
+            # logger.info(col_id_df)
 
             col_review = list(col_review)
 
@@ -289,7 +289,7 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
                 break
 
         text = text.strip().split("\n\n")
-        # random.shuffle(text)
+        random.shuffle(text)
 
         num_doc = len(text)
         split_index = int(num_doc * 0.2)
@@ -693,7 +693,7 @@ def data_enforce_(label_file, review_file):
     res_1 = []
     res_2 = []
     count = 0
-    for _ in range(3):
+    for _ in range(20):
     # for _ in range(3):  # test
         print(_)
         for row_re in df_reviews.values:
@@ -847,4 +847,3 @@ if __name__ == '__main__':
     m1 = data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
     m2 = data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
     print(m1, m2)
-#
