@@ -663,9 +663,9 @@ def data_enforce_v2(label_file, review_file):
     pd.DataFrame(data=res_2, columns=columns_2).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv", index=False,
                                                        encoding="utf-8")
 if __name__ == '__main__':
-    # file_labels = r"data\zhejiang\th1\TRAIN\Train_labels.csv"
-    # file_reviews = r"data\zhejiang\th1\TRAIN\Train_reviews.csv"
-    # file_reviews_ = r"data\zhejiang\th1\TEST\Test_reviews.csv"
+    # file_labels = r"zhejiang/data_sentimental/Train_labels.csv"
+    # file_reviews = r"zhejiang/data_sentimental/Train_reviews.csv"
+    # file_reviews_ = r"zhejiang/data_sentimental/Test_reviews.csv"
     # train_count = count_train_data(file)
     # logger.info(train_count)
     # dict_words = open(r"D:\projects_py\bert\chinese_L-12_H-768_A-12\vocab.txt", encoding="utf-8").readlines()
