@@ -211,22 +211,25 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
     else:
         df_labels = pd.read_csv(output_file, encoding="utf-8", delimiter=",", header=0)
         cates_id = count_category(output_file, data_dir)
-        # logger.info(Counter(df_labels["Categories"].values))
+        logger.info(Counter(df_labels["Categories"].values))
         # print(df_reviews.info())
         # print(df_labels.info())
         logger.info(cates_id)
         text = ""
         cols_name = "AspectTerms,A_start,OpinionTerms,O_start,Categories".split(",")
         for col_id, col_review in tqdm(df_reviews[["id", "Reviews"]].values):
-            # logger.info(col_id)
-            # logger.info(col_review)
+            logger.info(col_id)
+            logger.info(col_review)
             col_id_df = df_labels.loc[df_labels.id == col_id]
-            # logger.info(col_id_df)
+            logger.info(col_id_df)
 
             col_review = list(col_review)
+
             if len(col_review) > max_len:
                 max_len = len(col_review)
+
             col_review_label = " ".join(col_review)  # 用空格进行分开
+            logger
             # print(cols_name)
             for AspectTerms, A_start, OpinionTerms, O_start, Categories in col_id_df[cols_name].values:
                 cate_id = cates_id.get(Categories)
@@ -684,6 +687,7 @@ def data_enforce_(label_file, review_file):
     columns_2 = "id,Reviews".split(",")
     df_labels = pd.read_csv(open(label_file, encoding="utf-8"), header=0)[columns_1]
     df_reviews = pd.read_csv(open(review_file, encoding="utf-8"), header=0)[columns_2]
+    df_reviews.Reviews = [re.sub("\s+", "，", v) for v in df_reviews.Reviews]
     print(df_labels[:3])
     print(df_reviews[:3])
     res_1 = []
@@ -761,7 +765,7 @@ def data_enforce_(label_file, review_file):
                 for god_word in god_words:
                     if god_word != "@" and god_word != "&":
                         tmp = synonyms.nearby(god_word)[0]
-                        if tmp:
+                        if tmp and god_word not in row_review[1] and god_word not in row_review[4]:
                             # 同义词替换
                             row_review[1] = row_review[1].replace(god_word, random.choice(tmp))
                             is_fake = True
@@ -793,6 +797,7 @@ def data_enforce_(label_file, review_file):
             for v in range(len(rows_la)):
                 rows_la[v][0] = count
             row_review[0] = count
+            row_review[1] = re.sub("\s+", "，", row_review[1])
             # logger.info(rows_la)
 
             res_1.extend(rows_la)
@@ -842,3 +847,4 @@ if __name__ == '__main__':
     m1 = data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
     m2 = data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
     print(m1, m2)
+#
