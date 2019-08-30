@@ -555,29 +555,142 @@ def random_pick(some_list, probabilities):
     return item
 
 
-def data_enforce(label_file, review_file):
+# def data_enforce(label_file, review_file):
+#     """数据增强: 以0.3 的概率对样本进行替换"""
+#     columns_1 = "id,AspectTerms,A_start,A_end,OpinionTerms,O_start,O_end,Categories,Polarities".split(",")
+#     columns_2 = "id,Reviews".split(",")
+#     df_labels = pd.read_csv(open(label_file, encoding="utf-8"), header=0)[columns_1]
+#     df_reviews = pd.read_csv(open(review_file, encoding="utf-8"), header=0)[columns_2]
+#     df_reviews.index = df_reviews["id"].values
+#     print(df_labels[:3])
+#     print(df_reviews[:3])
+#     res_1 = []
+#     res_2 = []
+#     count = 0
+#     # for _ in range(50):
+#     for _ in range(3):  # test
+#         print(_)
+#         for row1 in df_labels.values:
+#             count += 1
+#             is_fake = False
+#             row2 = df_reviews.loc[row1[0]].values
+#             # print(row2)
+#             # print(row1)
+#             row_label = list(row1)
+#             row_review = list(row2)
+#             if row_label[1] != "_":
+#                 # AspectTerms 随机替换
+#                 aspect = row_label[1]
+#                 # 对于置信度大于0.4 的均作为备选
+#                 aspect_syn = [word for word, _ in zip(*synonyms.nearby(aspect)) if _ > 0.4]
+#                 if uniform() < 0.3 and aspect_syn:
+#                     # 随机选出一个替换
+#                     aspect_replace = random.choice(aspect_syn)
+#                     row_label[1] = aspect_replace
+#                     row_review[1] = row_review[1].replace(aspect, aspect_replace)
+#                     is_fake = True
+#
+#             if row_label[4] != "_":
+#                 # 情感 随机替换
+#                 opinion = row_label[4]
+#                 # print(synonyms.nearby(opinion))
+#                 opinion_syn = [word for word, _ in zip(*synonyms.nearby(opinion)) if _ > 0.4]
+#                 if uniform() < 0.3 and opinion_syn:
+#                     opinion_replace = random.choice(opinion_syn)
+#                     row_label[4] = opinion_replace
+#                     row_review[1] = row_review[1].replace(opinion, opinion_replace)
+#                     is_fake = True
+#             # 经过上面两次处理，被替换的概率低于0.49
+#
+#             if uniform() < 0.05:
+#                 # 以较低的概率 对aspect 和opinion的位置进行交换
+#                 if row_label[1] != "_" and row_label[4] != "_":
+#                     # 对标签位置进行更改
+#                     tmp = row_label[2]
+#                     row_label[2] = row_label[5]
+#                     row_label[5] = tmp
+#                     tmp = row_label[3]
+#                     row_label[3] = row_label[6]
+#                     row_label[6] = tmp
+#                     # 对文本进行更改
+#                     row_review[1] = row_review[1] \
+#                         .replace(row_label[1], row_label[4]) \
+#                         .replace(row_label[4], row_label[1])
+#                     is_fake = True
+#
+#             # 经过上面的操作被 变换的可能为低于0.54
+#
+#             if uniform() < 0.2:
+#                 # 随机替换1-3个词汇个词汇
+#                 seg_words = synonyms.seg(row_review[1].replace(row_label[1], "@").replace(row_label[4], "@"))[0]
+#                 num = random_pick([1, 2, 3], [0.7, 0.25, 0.05])
+#                 # print(seg_words, num)
+#                 god_words = np.random.choice(seg_words, min(num, len(seg_words)), replace=False)
+#                 for god_word in god_words:
+#                     if god_word != "@" and god_word != "&":
+#                         tmp = synonyms.nearby(god_word)[0]
+#                         if tmp:
+#                             # 同义词替换
+#                             row_review[1] = row_review[1].replace(god_word, random.choice(tmp))
+#                             is_fake = True
+#
+#             # 经过上面的处理， 该样本为生成样本的概率低于0.74
+#
+#             if uniform() < 0.1:
+#                 # 随机交换两个词汇
+#                 seg_words = synonyms.seg(row_review[1].replace(row_label[1], "@").replace(row_label[4], "@"))[0]
+#                 if len(seg_words) > 5:
+#                     tmp = np.random.choice(seg_words, 2, replace=False)
+#                     row_review[1] = row_review[1].replace(tmp[0], tmp[1]).replace(tmp[1], tmp[0])
+#                     is_fake = True
+#
+#             if uniform() < 0.05:
+#                 # 随机删除一个字符
+#                 char_index = random.randint(0, len(row_review[1]) - 1)
+#                 if row_review[1][char_index] not in {v for v in (row_label[1] + row_label[4])}:
+#                     row_review[1] = row_review[1][:char_index] + row_review[1][char_index + 1:]
+#                     is_fake = True
+#
+#             # 经过前面的处理增强样本占比低于0.9
+#             row_label[0] = count
+#             row_review[0] = count
+#
+#             res_1.append(row_label + [is_fake])
+#             res_2.append(row_review + [is_fake])
+#     pd.DataFrame(data=res_1, columns=columns_1 + ["is_fake"]).to_csv("zhejiang/enforce_data/train_labels_enforce.csv",
+#                                                                      index=False,
+#                                                                      encoding="utf-8")
+#     pd.DataFrame(data=res_2, columns=columns_2 + ["is_fake"]).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv",
+#                                                                      index=False,
+#                                                                      encoding="utf-8")
+
+
+def data_enforce_(label_file, review_file):
     """数据增强: 以0.3 的概率对样本进行替换"""
     columns_1 = "id,AspectTerms,A_start,A_end,OpinionTerms,O_start,O_end,Categories,Polarities".split(",")
     columns_2 = "id,Reviews".split(",")
     df_labels = pd.read_csv(open(label_file, encoding="utf-8"), header=0)[columns_1]
     df_reviews = pd.read_csv(open(review_file, encoding="utf-8"), header=0)[columns_2]
-    df_reviews.index = df_reviews["id"].values
     print(df_labels[:3])
     print(df_reviews[:3])
     res_1 = []
     res_2 = []
     count = 0
     # for _ in range(50):
-    for _ in range(1):  # test
+    for _ in range(3):  # test
         print(_)
-        for row1 in df_labels.values:
+        for row_re in df_reviews.values:
             count += 1
             is_fake = False
-            row2 = df_reviews.loc[row1[0]].values
-            # print(row2)
-            # print(row1)
-            row_label = list(row1)
-            row_review = list(row2)
+
+            # 随机选择一个label行进行更改
+            rows_la = df_labels[df_labels.id == row_re[0]].values
+            one_index = random.randint(0, len(rows_la) - 1)
+            # print(rows_la)
+            row_la = rows_la[one_index]
+            # print(row_la)
+            row_label = list(row_la)
+            row_review = list(row_re)
             if row_label[1] != "_":
                 # AspectTerms 随机替换
                 aspect = row_label[1]
@@ -652,14 +765,19 @@ def data_enforce(label_file, review_file):
                     is_fake = True
 
             # 经过前面的处理增强样本占比低于0.9
-            row_label[0] = count
+
+            # 序列编号id
+            rows_la[one_index] = np.array(row_label)
+            for v in rows_la:
+                v[0] = count
             row_review[0] = count
-            res_1.append(row_label + [is_fake])
-            res_2.append(row_review + [is_fake])
-    pd.DataFrame(data=res_1, columns=columns_1 + ["is_fake"]).to_csv("zhejiang/enforce_data/train_labels_enforce.csv",
+
+            res_1.append(row_label)
+            res_2.append(row_review + [is_fake, row_re[-1]])
+    pd.DataFrame(data=res_1, columns=columns_1).to_csv("zhejiang/enforce_data/train_labels_enforce.csv",
                                                                      index=False,
                                                                      encoding="utf-8")
-    pd.DataFrame(data=res_2, columns=columns_2 + ["is_fake"]).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv",
+    pd.DataFrame(data=res_2, columns=columns_2 + ["is_fake", "original_review"]).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv",
                                                                      index=False,
                                                                      encoding="utf-8")
 
@@ -691,7 +809,7 @@ if __name__ == '__main__':
     # get_sentiment_result()
 
     #  数据增强
-    data_enforce(file_labels, file_reviews)  # 关闭seed
+    data_enforce_(file_labels, file_reviews)  # 关闭seed
     # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
     # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
     # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
