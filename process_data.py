@@ -16,7 +16,7 @@ import random
 import numpy as np
 
 seed = 1233
-# random.seed(seed)
+random.seed(seed)
 import synonyms
 
 """
@@ -218,10 +218,10 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
         text = ""
         cols_name = "AspectTerms,A_start,OpinionTerms,O_start,Categories".split(",")
         for col_id, col_review in tqdm(df_reviews[["id", "Reviews"]].values):
-            logger.info(col_id)
-            logger.info(col_review)
+            # logger.info(col_id)
+            # logger.info(col_review)
             col_id_df = df_labels.loc[df_labels.id == col_id]
-            logger.info(col_id_df)
+            # logger.info(col_id_df)
 
             col_review = list(col_review)
             if len(col_review) > max_len:
@@ -263,7 +263,7 @@ def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"
             # logger.info(col_review_label)
 
             try:
-                # assert (len(col_review_label) == len(col_review))
+                assert (len(col_review_label) == len(col_review))
                 # 其他地方已经进行过处理
                 # col_review = ["[CLS]"] + col_review
                 # col_review_label = ["C"] + col_review_label
@@ -771,7 +771,7 @@ def data_enforce_(label_file, review_file):
 
             if uniform() < 0.1:
                 # 随机交换两个词汇
-                seg_words = synonyms.seg(row_review[1].replace(row_label[1], "@").replace(row_label[4], "@"))[0]
+                seg_words = synonyms.seg(row_review[1].replace(row_label[1], "@").replace(row_label[4], "@"))
                 if len(seg_words) > 5:
                     tmp = np.random.choice(seg_words, 2, replace=False)
                     row_review[1] = row_review[1].replace(tmp[0], tmp[1]).replace(tmp[1], tmp[0])
