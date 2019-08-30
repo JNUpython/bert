@@ -438,11 +438,20 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
             hook_dict['global_steps'] = tf.train.get_or_create_global_step()
             logging_hook = tf.train.LoggingTensorHook(hook_dict, every_n_iter=args.save_summary_steps)
 
+            def metric_fn(label_ids, pred_ids):
+                return {
+                    # 采用均方误差？？？？
+                    "train_acc": tf.metrics.accuracy(labels=label_ids, predictions=pred_ids),
+                }
+
+            eval_metrics = metric_fn(label_ids, pred_ids)
             output_spec = tf.estimator.EstimatorSpec(
                 mode=mode,
                 loss=total_loss,
                 train_op=train_op,
-                training_hooks=[logging_hook])
+                training_hooks=[logging_hook],
+                eval_metric_ops=eval_metrics
+            )
 
         elif mode == tf.estimator.ModeKeys.EVAL:
             # dev
