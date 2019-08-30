@@ -179,7 +179,7 @@ def data_for_squence(input_file, output_file=None):
             file.close()
 
 
-def count_category(output_file):
+def count_category(output_file, data_dir):
     df_labels = pd.read_csv(output_file, encoding="utf-8", delimiter=",", header=0)
     cates = df_labels.Categories.values
     len(cates)
@@ -188,7 +188,7 @@ def count_category(output_file):
     for v, k in enumerate(set(cates)):
         cates_ids[k] = v
     logger.info(cates)
-    pd.Series(cates_ids).to_csv("./data/category_ids.csv")
+    pd.Series(cates_ids).to_csv(data_dir + "/category_ids.csv")
     logger.info(cates_ids)
     return cates_ids
 
@@ -218,7 +218,7 @@ def data_for_squence2(input_file, output_file=None, data_dir = "zhejiang/data_ne
             file.close()
     else:
         df_labels = pd.read_csv(output_file, encoding="utf-8", delimiter=",", header=0)
-        cates_id = count_category(output_file)
+        cates_id = count_category(output_file, data_dir)
         # logger.info(Counter(df_labels["Categories"].values))
         # print(df_reviews.info())
         # print(df_labels.info())
