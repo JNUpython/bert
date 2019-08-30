@@ -624,6 +624,7 @@ def data_enforce_v2(label_file, review_file):
                    {"aspect": True, "opinion": False, "nearby_index": 3},
                    {"aspect": False, "opinion": True, "nearby_index": 3}
                    ]
+    bad_syn = ["性价比"]
     for action in action_list:
         print(action)
         for row1 in df_labels.values:
@@ -636,7 +637,8 @@ def data_enforce_v2(label_file, review_file):
                 # AspectTerms 随机替换
                 aspect = row_label[1]
                 aspect_syn = synonyms.nearby(aspect)[0]
-                if action and action["nearby_index"] < len(aspect_syn) and action["aspect"] == True:
+                if action and action["nearby_index"] < len(aspect_syn) \
+                        and action["aspect"] is True and aspect not in bad_syn:
                     aspect_replace = aspect_syn[action["nearby_index"]]
                     row_label[1] = aspect_replace
                     row_review[1] = row_review[1].replace(aspect, aspect_replace)
@@ -646,7 +648,8 @@ def data_enforce_v2(label_file, review_file):
                 # 情感 随机替换
                 opinion = row_label[4]
                 opinion_syn = synonyms.nearby(opinion)[0]
-                if action and action["nearby_index"] < len(opinion_syn) and action["opinion"] == True:
+                if action and action["nearby_index"] < len(opinion_syn) \
+                        and action["opinion"] is True and opinion not in bad_syn:
                     opinion_replace = opinion_syn[action["nearby_index"]]
                     row_label[4] = opinion_replace
                     row_review[1] = row_review[1].replace(opinion, opinion_replace)
@@ -691,7 +694,7 @@ if __name__ == '__main__':
     #  数据增强
     file_labels = "zhejiang/data_sentimental/Train_labels.csv"
     file_reviews = "zhejiang/data_sentimental/Train_reviews.csv"
-    data_enforce_v2(file_labels, file_reviews) # 关闭seed
+    data_enforce_v2(file_labels, file_reviews)
     # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
     # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
     # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
