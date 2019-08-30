@@ -488,6 +488,14 @@ def model_fn_builder(bert_config, num_labels, init_checkpoint, learning_rate, nu
             # 加载pre train的模型
             assignment_map, initialized_variable_names = modeling.get_assignment_map_from_checkpoint(
                 tvars, init_checkpoint)
+            # 打印加载模型的参数
+            logger.info("**** Trainable Variables ****")
+        for var in tvars:
+            init_string = ""
+            if var.name in initialized_variable_names:
+                # 这里代表能加载的参数，否则不是加载
+                init_string = ", *INIT_FROM_CKPT*"
+            logger.info("  name = %s, shape = %s%s", var.name, var.shape, init_string)
 
             if use_tpu:
 
