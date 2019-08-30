@@ -36,17 +36,15 @@ def count_train_data(file):
             logger.info(line)
             line = re.sub("[a-zA-Z]+", "@", line)
             line = re.sub("\d+", "&", line)
-            line = re.sub("\s", "", line)
+            line = re.sub("\s|\.", "", line)
             words.extend(list(line))
     return Counter(words)
 
 
-"""
-将获取的一部分额外没有标注的电商评论数据用户pre-train bert
-"""
-
-
 def prepare_fine_tune_data():
+    """
+    将获取的一部分额外没有标注的电商评论数据用户pre-train bert
+    """
     file = r"D:\projects_py\bert\data\zhejiang\goods_zh.txt"
     reviews = open(file, encoding="utf-8", mode="r").readlines()
     texts = []
@@ -60,12 +58,10 @@ def prepare_fine_tune_data():
          encoding="utf8", mode="w").write("\n\n".join(texts))
 
 
-"""
-将任务作为一个序列化标注的问题，将数据整理为序列标注BIO
-"""
-
-
 def sentence_clean(sentence):
+    """
+    将任务作为一个序列化标注的问题，将数据整理为序列标注BIO
+    """
     # 字母 数字
     sentence = re.sub("[a-zA-Z]+", "@", sentence)
     sentence = re.sub("\d+", "&", sentence)
@@ -76,13 +72,6 @@ def sentence_clean(sentence):
 def data_for_squence(input_file, output_file=None):
     df_reviews = pd.read_csv(input_file, encoding="utf-8", delimiter=",", header=0)
     reviews = df_reviews["Reviews"].values
-
-    def sentence_clean(sentence):
-        # 字母 数字
-        sentence = re.sub("[a-zA-Z]+", "@", sentence)
-        sentence = re.sub("\d+", "&", sentence)
-        sentence = re.sub("\s", "", sentence)
-        return sentence.strip()
 
     # 句子清洗
     sentences = list(map(sentence_clean, reviews))
@@ -188,12 +177,12 @@ def count_category(output_file, data_dir):
     for v, k in enumerate(set(cates)):
         cates_ids[k] = v
     logger.info(cates)
-    pd.Series(cates_ids).to_csv(data_dir + "/category_ids.csv",encoding="GBK")
+    pd.Series(cates_ids).to_csv(data_dir + "/category_ids.csv")
     logger.info(cates_ids)
     return cates_ids
 
 
-def data_for_squence2(input_file, output_file=None, data_dir = "zhejiang/data_ner"):
+def data_for_squence2(input_file, output_file=None, data_dir="zhejiang/data_ner"):
     """
     NER识别的数据准备
     :param input_file:
@@ -290,7 +279,7 @@ def data_for_squence2(input_file, output_file=None, data_dir = "zhejiang/data_ne
 
         num_doc = len(text)
         split_index = int(num_doc * 0.2)
-        split_index = 0
+
         text_dev = text[:split_index]
         text_train = text[split_index:]
 
@@ -389,8 +378,7 @@ def count_predcited_aspect_opinion():
 
 def parse_ner_predict(predicted_file, category_ids_file):
     category_ids = {}
-    for k, v in pd.read_csv(open(category_ids_file,encoding="GBK"), header=None).values:
-
+    for k, v in pd.read_csv(open(category_ids_file), header=None).values:
         category_ids[v] = k
     logger.info(category_ids)
     assert (len(category_ids) != 0)
@@ -482,7 +470,7 @@ def parse_ner_predict(predicted_file, category_ids_file):
             # break
         df = pd.DataFrame(data=res,
                           columns=["ID", "Review", "AspectTerms", "Opinions", "Polarities", "Categories", "Ner"])
-        df.to_excel("./zhejiang/data_ner/ner_res.xlsx",index=False)
+        df.to_excel("./zhejiang/data_ner/ner_res.xlsx", index=False)
 
 
 def data_for_sentimental():
@@ -491,11 +479,11 @@ def data_for_sentimental():
     path = "zhejiang/data_ner/ner_res.xlsx"
     df = pd.read_excel(path)
     df = df[columns].fillna(value="_")
-    df.to_csv("./zhejiang/data_sentimental/test.csv",index=False)
+    df.to_csv("./zhejiang/data_sentimental/test.csv", index=False)
     print(df[:3])
 
     # train：将训练数据对应的label opinion提取并作为序列化标注的结果
-    df = pd.read_csv(open("zhejiang/data_sentimental/Train_labels.csv", encoding="utf-8"), header=0)
+    df = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_labels.csv", encoding="utf-8"), header=0)
     df = df[["id", "AspectTerms", "OpinionTerms", "Polarities", "Categories"]]
     sentiment_ids = collections.OrderedDict()
     for index, senti in enumerate(set(df["Polarities"].values)):
@@ -506,7 +494,7 @@ def data_for_sentimental():
     df.columns = columns[:-1]
     print(df[:3])
     # 给训练数据添加review
-    df_review = pd.read_csv(open("zhejiang/data_sentimental/Train_reviews.csv", encoding="utf8"),
+    df_review = pd.read_csv(open(r"D:\projects_py\bert\data\zhejiang\th1\TRAIN\Train_reviews.csv", encoding="utf8"),
                             header=0, index_col=["id"], dtype=str)
     # print(df_review[:3])
     f = lambda x: " ".join(list(sentence_clean(x)))
@@ -521,20 +509,19 @@ def data_for_sentimental():
     df = df.iloc[indexes]
     num_row = len(df)
     split_index = int(num_row * 0.2)
-    split_index = 0
     df_dev = df[:split_index]
     df_train = df[split_index:]
     logger.info(len(df_dev))
     logger.info(len(df_train))
 
-    df_train.to_csv("zhejiang/data_sentimental/train.csv", encoding="utf-8",index=False)
-    df_dev.to_csv("zhejiang/data_sentimental/dev.csv", encoding="utf-8",index=False)
+    df_train.to_csv("zhejiang/data_sentimental/train.csv", index=False)
+    df_dev.to_csv("zhejiang/data_sentimental/dev.csv", index=False)
 
 
 def get_sentiment_result():
     import os
     path_data_sentimental = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_sentimental"
-    df = pd.read_csv(open(os.path.join(path_data_sentimental, "sentiment_ids.csv"), encoding="utf-8"), header=None)
+    df = pd.read_csv(open(os.path.join(path_data_sentimental, "sentiment_ids.csv"), encoding="GBK"), header=None)
     id_sentiment = {int(v): k for k, v in df.values}
     print(id_sentiment)
     df = pd.read_csv(open(os.path.join(path_data_sentimental, "test_results.tsv"), encoding="utf-8"), sep='\t',
@@ -542,7 +529,7 @@ def get_sentiment_result():
     # print(df)
     sentiment = [id_sentiment[np.argmax(three)] for three in df.values]
     print(sentiment)
-    df = pd.read_csv(open(os.path.join(path_data_sentimental, "test.csv"), encoding="utf-8"), header=0)
+    df = pd.read_csv(open(os.path.join(path_data_sentimental, "test.csv"), encoding="GBK"), header=0)
     df["Polarities"] = sentiment
 
     df_test = pd.read_csv(open(os.path.join(path_data_sentimental, "Test_reviews.csv"), encoding="utf-8"), header=0)
@@ -553,11 +540,20 @@ def get_sentiment_result():
     df = df[["id", "AspectTerms", "Opinions", "Categories", "Polarities"]]
     df.to_csv(os.path.join(path_data_sentimental, "Result.csv"), encoding="utf-8", header=None, index=False)
 
+
 def uniform():
     return random.uniform(0, 1)
 
-def ranint():
-    return random.randint(0, 2)
+
+def random_pick(some_list, probabilities):
+    x = random.uniform(0, 1)
+    cumulative_probability = 0.0
+    for item, item_probability in zip(some_list, probabilities):
+        cumulative_probability += item_probability
+        if x < cumulative_probability:
+            break
+    return item
+
 
 def data_enforce(label_file, review_file):
     """数据增强: 以0.3 的概率对样本进行替换"""
@@ -570,101 +566,108 @@ def data_enforce(label_file, review_file):
     print(df_reviews[:3])
     res_1 = []
     res_2 = []
-    for _ in range(10):
+    count = 0
+    # for _ in range(50):
+    for _ in range(1):  # test
         print(_)
         for row1 in df_labels.values:
+            count += 1
+            is_fake = False
             row2 = df_reviews.loc[row1[0]].values
             # print(row2)
             # print(row1)
-            row_label = row1
-            row_review = row2
+            row_label = list(row1)
+            row_review = list(row2)
             if row_label[1] != "_":
                 # AspectTerms 随机替换
                 aspect = row_label[1]
-                aspect_syn = synonyms.nearby(aspect)[0]
-                if uniform() < 0.3 and len(aspect_syn) > 3:
-                    aspect_replace = aspect_syn[1:4][ranint()]
+                # 对于置信度大于0.4 的均作为备选
+                aspect_syn = [word for word, _ in zip(*synonyms.nearby(aspect)) if _ > 0.4]
+                if uniform() < 0.3 and aspect_syn:
+                    # 随机选出一个替换
+                    aspect_replace = random.choice(aspect_syn)
                     row_label[1] = aspect_replace
                     row_review[1] = row_review[1].replace(aspect, aspect_replace)
-                    # row_label[0] = "%s@" % row_label[0]  # 只为了测试观测开启，id后面对用还有用
+                    is_fake = True
 
             if row_label[4] != "_":
                 # 情感 随机替换
                 opinion = row_label[4]
-                opinion_syn = synonyms.nearby(opinion)[0]
-                if uniform() < 0.3 and len(opinion_syn) > 3:
-                    opinion_replace = opinion_syn[1:4][ranint()]
+                # print(synonyms.nearby(opinion))
+                opinion_syn = [word for word, _ in zip(*synonyms.nearby(opinion)) if _ > 0.4]
+                if uniform() < 0.3 and opinion_syn:
+                    opinion_replace = random.choice(opinion_syn)
                     row_label[4] = opinion_replace
                     row_review[1] = row_review[1].replace(opinion, opinion_replace)
-                    # row_label[0] = "%s@" % row_label[0]
+                    is_fake = True
+            # 经过上面两次处理，被替换的概率低于0.49
 
-            res_1.append(row_label)
-            res_2.append(row_review)
-    pd.DataFrame(data=res_1, columns=columns_1).to_csv("zhejiang/enforce_data/train_labels_enforce.csv", index=False, encoding="utf-8")
-    pd.DataFrame(data=res_2, columns=columns_2).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv", index=False, encoding="utf-8")
+            if uniform() < 0.05:
+                # 以较低的概率 对aspect 和opinion的位置进行交换
+                if row_label[1] != "_" and row_label[4] != "_":
+                    # 对标签位置进行更改
+                    tmp = row_label[2]
+                    row_label[2] = row_label[5]
+                    row_label[5] = tmp
+                    tmp = row_label[3]
+                    row_label[3] = row_label[6]
+                    row_label[6] = tmp
+                    # 对文本进行更改
+                    row_review[1] = row_review[1] \
+                        .replace(row_label[1], row_label[4]) \
+                        .replace(row_label[4], row_label[1])
+                    is_fake = True
 
-def data_enforce_v2(label_file, review_file):
-    """数据增强: 为所有数据增强"""
-    columns_1 = "id,AspectTerms,A_start,A_end,OpinionTerms,O_start,O_end,Categories,Polarities".split(",")
-    columns_2 = "id,Reviews".split(",")
-    df_labels = pd.read_csv(open(label_file, encoding="utf-8"), header=0)[columns_1]
-    df_reviews = pd.read_csv(open(review_file, encoding="utf-8"), header=0)[columns_2]
-    df_reviews.index = df_reviews["id"].values
-    print(df_labels[:3])
-    print(df_reviews[:3])
-    res_1 = []
-    res_2 = []
-    action_list = [None,None,
-                   {"aspect": True, "opinion": True, "nearby_index": 1},
-                   {"aspect": True, "opinion": False, "nearby_index": 1},
-                   {"aspect": False, "opinion": True, "nearby_index": 1},
-                   {"aspect": True, "opinion": True, "nearby_index": 2},
-                   {"aspect": True, "opinion": False, "nearby_index": 2},
-                   {"aspect": False, "opinion": True, "nearby_index": 2},
-                   {"aspect": True, "opinion": True, "nearby_index": 3},
-                   {"aspect": True, "opinion": False, "nearby_index": 3},
-                   {"aspect": False, "opinion": True, "nearby_index": 3}
-                   ]
-    bad_syn = ["性价比"]
-    for action in action_list:
-        print(action)
-        for row1 in df_labels.values:
-            row2 = df_reviews.loc[row1[0]].values
-            # print(row2)
-            # print(row1)
-            row_label = row1
-            row_review = row2
-            if row_label[1] != "_":
-                # AspectTerms 随机替换
-                aspect = row_label[1]
-                aspect_syn = synonyms.nearby(aspect)[0]
-                if action and action["nearby_index"] < len(aspect_syn) \
-                        and action["aspect"] is True and aspect not in bad_syn:
-                    aspect_replace = aspect_syn[action["nearby_index"]]
-                    row_label[1] = aspect_replace
-                    row_review[1] = row_review[1].replace(aspect, aspect_replace)
-                    # row_label[0] = "%s@" % row_label[0]  # 只为了测试观测开启，id后面对用还有用
+            # 经过上面的操作被 变换的可能为低于0.54
 
-            if row_label[4] != "_":
-                # 情感 随机替换
-                opinion = row_label[4]
-                opinion_syn = synonyms.nearby(opinion)[0]
-                if action and action["nearby_index"] < len(opinion_syn) \
-                        and action["opinion"] is True and opinion not in bad_syn:
-                    opinion_replace = opinion_syn[action["nearby_index"]]
-                    row_label[4] = opinion_replace
-                    row_review[1] = row_review[1].replace(opinion, opinion_replace)
-                    # row_label[0] = "%s@" % row_label[0]
+            if uniform() < 0.2:
+                # 随机替换1-3个词汇个词汇
+                seg_words = synonyms.seg(row_review[1].replace(row_label[1], "@").replace(row_label[4], "@"))[0]
+                num = random_pick([1, 2, 3], [0.7, 0.25, 0.05])
+                # print(seg_words, num)
+                god_words = np.random.choice(seg_words, min(num, len(seg_words)), replace=False)
+                for god_word in god_words:
+                    if god_word != "@" and god_word != "&":
+                        tmp = synonyms.nearby(god_word)[0]
+                        if tmp:
+                            # 同义词替换
+                            row_review[1] = row_review[1].replace(god_word, random.choice(tmp))
+                            is_fake = True
 
-            res_1.append(row_label)
-            res_2.append(row_review)
-    pd.DataFrame(data=res_1, columns=columns_1).to_csv("zhejiang/enforce_data/train_labels_enforce.csv", index=False, encoding="utf-8")
-    pd.DataFrame(data=res_2, columns=columns_2).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv", index=False, encoding="utf-8")
+            # 经过上面的处理， 该样本为生成样本的概率低于0.74
+
+            if uniform() < 0.1:
+                # 随机交换两个词汇
+                seg_words = synonyms.seg(row_review[1].replace(row_label[1], "@").replace(row_label[4], "@"))[0]
+                if len(seg_words) > 5:
+                    tmp = np.random.choice(seg_words, 2, replace=False)
+                    row_review[1] = row_review[1].replace(tmp[0], tmp[1]).replace(tmp[1], tmp[0])
+                    is_fake = True
+
+            if uniform() < 0.05:
+                # 随机删除一个字符
+                char_index = random.randint(0, len(row_review[1]) - 1)
+                if row_review[1][char_index] not in {v for v in (row_label[1] + row_label[4])}:
+                    row_review[1] = row_review[1][:char_index] + row_review[1][char_index + 1:]
+                    is_fake = True
+
+            # 经过前面的处理增强样本占比低于0.9
+            row_label[0] = count
+            row_review[0] = count
+            res_1.append(row_label + [is_fake])
+            res_2.append(row_review + [is_fake])
+    pd.DataFrame(data=res_1, columns=columns_1 + ["is_fake"]).to_csv("zhejiang/enforce_data/train_labels_enforce.csv",
+                                                                     index=False,
+                                                                     encoding="utf-8")
+    pd.DataFrame(data=res_2, columns=columns_2 + ["is_fake"]).to_csv("zhejiang/enforce_data/train_reviews_enforce.csv",
+                                                                     index=False,
+                                                                     encoding="utf-8")
+
 
 if __name__ == '__main__':
-    # file_labels = r"data\zhejiang\th1\TRAIN\Train_labels.csv"
-    # file_reviews = r"data\zhejiang\th1\TRAIN\Train_reviews.csv"
-    # file_reviews_ = r"data\zhejiang\th1\TEST\Test_reviews.csv"
+    file_labels = r"data\zhejiang\th1\TRAIN\Train_labels.csv"
+    file_reviews = r"data\zhejiang\th1\TRAIN\Train_reviews.csv"
+    file_reviews_ = r"data\zhejiang\th1\TEST\Test_reviews.csv"
     # train_count = count_train_data(file)
     # logger.info(train_count)
     # dict_words = open(r"D:\projects_py\bert\chinese_L-12_H-768_A-12\vocab.txt", encoding="utf-8").readlines()
@@ -681,23 +684,16 @@ if __name__ == '__main__':
     # count_predcited_aspect_opinion()
     # count_category(file_labels)
     # data_for_squence2(file_reviews, file_labels)
-    # import sys
-    # if len(sys.argv)>1:
-    #     file_predict = ""
-    # else:
-    # file_predict = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner/label_test.txt"
-    # file_category_ids = "/Users/mo/Documents/github_projects/zhijiang/JNU/bert/zhejiang/data_ner_enforce/category_ids.csv"
-    # parse_ner_predict(file_predict, file_category_ids)
+    file_predict = r"D:\projects_py\bert\zhejiang\data_ner\label_test.txt"
+    file_category_ids = r"D:\projects_py\bert\zhejiang\data_ner\category_ids.csv"
     # parse_ner_predict(file_predict, file_category_ids)
     # data_for_sentimental()
     # get_sentiment_result()
 
     #  数据增强
-    file_labels = "zhejiang/data_sentimental/Train_labels.csv"
-    file_reviews = "zhejiang/data_sentimental/Train_reviews.csv"
-    data_enforce_v2(file_labels, file_reviews)
-    file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
-    file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
-    file_reviews_ = "zhejiang/data_sentimental/Test_reviews.csv"
-    data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
-    data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    data_enforce(file_labels, file_reviews)  # 关闭seed
+    # file_labels = "zhejiang/enforce_data/train_labels_enforce.csv"
+    # file_reviews = "zhejiang/enforce_data/train_reviews_enforce.csv"
+    # file_reviews_ = "data/zhejiang/th1/TEST/Test_reviews.csv"
+    # data_for_squence2(file_reviews_, None, data_dir="zhejiang/data_ner_enforce")  # 开启seed
+    # data_for_squence2(file_reviews, file_labels, data_dir="zhejiang/data_ner_enforce")  # 开启seed
