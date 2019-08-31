@@ -48,7 +48,7 @@ flags.DEFINE_string("data_dir",
 
 flags.DEFINE_string("bert_config_file",
                     # r"D:\projects_py\bert\chinese_L-12_H-768_A-12\bert_config.json",
-                    " /data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/bert_config.json",
+                    "/data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/bert_config.json",
                     "The config json file corresponding to the pre-trained BERT model. This specifies the model architecture.")
 
 flags.DEFINE_string("task_name",
