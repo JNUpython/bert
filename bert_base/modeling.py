@@ -379,7 +379,7 @@ def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
 
         # https://github.com/google-research/bert/issues/383  解决模型加载错误
         # assignment_map[name] = name
-        assignment_map[name] = name_to_variable(name)
+        assignment_map[name] = name_to_variable[name]
         initialized_variable_names[name] = 1
         initialized_variable_names[name + ":0"] = 1
 
