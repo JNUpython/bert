@@ -57,7 +57,7 @@ flags.DEFINE_string("task_name",
 
 flags.DEFINE_string("vocab_file",
                     # r"D:\projects_py\bert\chinese_L-12_H-768_A-12\vocab.txt",
-                    "/data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/vocab.txt"
+                    "/data/haoran/aspect_based_sentiment/bert/chinese_L-12_H-768_A-12/vocab.txt",
                     "The vocabulary file that the BERT model was trained on.")
 
 flags.DEFINE_string("output_dir",
