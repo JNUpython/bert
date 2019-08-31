@@ -82,7 +82,7 @@ flags.DEFINE_integer("max_seq_length",
                      "than this will be padded.")
 flags.DEFINE_bool("do_train",
                   # True,
-                  True,
+                  False,
                   "Whether to run training.")
 
 flags.DEFINE_bool("do_eval",
